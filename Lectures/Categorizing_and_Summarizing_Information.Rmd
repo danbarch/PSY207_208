@@ -1,0 +1,1704 @@
+---
+title: "Categorizing and Summarizing Information"
+date: "`r Sys.Date()`"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [gauguin.css]
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include = FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(fig.showtext = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+library(ggplot2)
+library(ggthemes)
+library(tidyverse)
+library(moments)
+library(cowplot)
+library(officer)
+library(flextable)
+library(ftExtra)
+library(showtext)
+library(xaringan)
+library(xaringanthemer)
+library(gnorm)
+library(bmp)
+library(magick)
+
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+## To create pdf version:
+# setwd("~/Documents/PSY 208/PSY_207-208_23-24/Lectures")
+# renderthis::to_pdf("Categorizing_and_Summarizing_Information.Rmd", complex_slides = TRUE)
+
+## To create PowerPoint version:
+
+# renderthis::to_pptx("Categorizing_and_Summarizing_Information.Rmd", complex_slides = TRUE)
+```
+
+### Populations and Samples
+
+Scientific inquiry usually isn't entirely about the **specific thing that is being studied**
+
+.pull-leftcolumn[
+
+```{r echo=FALSE, out.width="100%"}
+knitr::include_graphics("images/beaker.jpeg")
+```
+]
+
+.pull-rightcolumn[
+For example: a chemist doesn't care about the reaction **in this beaker** as much as they care about **how these chemicals react *everywhere***.
+
+]
+
+
+When we use statistical analysis in science, we are usually interested in phenomena at the level of **populations**.
+
+To learn about populations, we use information from **subsets** of those populations that we call **samples**.
+---
+### Parameters and Statistics
+
+The numbers that describe *populations* are called **parameters**.
+
+> We virtually *never* have access to parameter values.
+
+The numbers that describe *samples* are called **statistics**.
+
+> We can observe data and calculate statistics!
+
+In most scientific studies, we are truly interested in making statements - or, **inferences** - about **parameters**. 
+
+> We do that by **generalizing** what we learn about samples.
+
+---
+### Parameters and statistics
+
+We treat **population-level data** as **essentially infinite** and thus represent their **distributions** with **smooth lines**, for example:
+
+
+```{r echo= FALSE, fig.width = 12, fig.height = 5}
+data.frame(x = seq(0, 10, 10/10000),
+           y = dchisq(seq(0, 10, 10/10000), df = 3)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.25,
+            color = "#df5d22")+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(axis.text = element_blank(),
+        axis.title = element_text(size = 24),
+        axis.ticks = element_blank(),
+        plot.caption = element_text(color = "#e2ce1b"))+
+  labs(x = "x (some number)",
+       y = "probability\nthat something = x",
+       caption = "that curve is smooth!")+
+  annotate("text",
+           x = 1.75,
+           y = 0.125,
+           vjust = 1,
+           label = "lots of things in\nthe population\nare this big",
+           size = 8)+
+    annotate("text",
+           x = 8.5,
+           y = 0.175,
+           vjust = 1,
+           label = "few things\nin the population\nare this big",
+           size = 8)+
+  geom_segment(x = 0.5,
+               xend = 3,
+               y = 0.025,
+               yend = 0.025,
+               )+
+    geom_segment(x = 0.5,
+               xend = 0.5,
+               y = 0.05,
+               yend = 0,
+               )+
+    geom_segment(x = 3,
+               xend = 3,
+               y = 0.05,
+               yend = 0,
+               )+
+      geom_segment(x = 7.25,
+               xend = 9.75,
+               y = 0.075,
+               yend = 0.075,
+               )+
+    geom_segment(x = 7.25,
+               xend = 7.25,
+               y = 0.1,
+               yend = 0.05,
+               )+
+    geom_segment(x = 9.75,
+               xend = 9.75,
+               y = 0.1,
+               yend = 0.05,
+               )
+  
+```
+
+---
+
+### Parameters and Statistics
+
+.pull-left[
+
+.slightly-smaller[
+**Sample-level data** are **finite**, **random** (in almost every sense), and **not smooth** (see analogy at left). 
+
+We can represent them as **histograms**, for example:
+]
+]
+.pull-right[
+
+.textbox[
+
+.pull-left[
+```{r echo = FALSE, out.width="50%", fig.align='right'}
+knitr::include_graphics("images/mona_lisa.bmp")
+```
+
+]
+
+.pull-right[
+```{r echo = FALSE, out.width = "50%", fig.align='left'}
+#set.seed(77)
+#mona<-image_read("images/mona_lisa.bmp")
+#
+#mona_bit<-image_convert(mona,
+#                        "bmp")
+#
+#mona_matrix <- as.raster(mona_bit, max = 255)
+#
+#dim(mona_matrix)
+#[1] 293 200
+#58600
+
+
+#mona_sample<-magick::image_read(mona_matrix[sort(sample(1:293, 29, replace = #FALSE)),sort(sample(1:200, 20, replace = FALSE))])
+#
+#image_write(mona_sample, path = "images/mona_sample.bmp",
+#            format = "bmp")
+#
+knitr::include_graphics("images/mona_sample.bmp")
+```
+
+
+]
+
+.center[
+Population (left) vs. Sample (right)
+]
+
+]
+]
+
+***
+
+```{r echo= FALSE, fig.width = 12, fig.height = 4}
+
+set.seed(77)
+data.frame(x = rchisq(500, df = 3)) %>% 
+  ggplot(aes(x))+
+  geom_histogram(linewidth = 1.25,
+            color = "#ffffff")+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(#axis.text = element_blank(),
+        axis.title = element_text(size = 24),
+        axis.ticks = element_blank(),
+        plot.caption = element_text(color = "#e2ce1b"))+
+  annotate("text",
+           x = 5,
+           y = 70,
+           hjust = 0.1,
+           size = 8,
+           label = "Many observations are this big")+
+  geom_segment(x = 4,
+               xend = 2,
+               y = 70, 
+               yend = 70,
+               arrow = arrow())+
+    annotate("text",
+           x = 14,
+           y = 35,
+           hjust = 0.5,
+           size = 8,
+           label = "Few observations\nare this big")+
+  geom_segment(x = 14,
+               xend = 14,
+               y = 20, 
+               yend = 5,
+               arrow = arrow())+
+  labs(x = "x (some number)",
+       y = "number\nof observations\nthat equal = x",
+       caption = "this histogram is chunky!")
+```
+
+---
+
+### Parameters and Statistics
+
+**Statistics** are usually **symbolized** using **Latin letters**
+
+> *e.g.*, if observed values are ** $x$**, the **mean** of those values is ** $\bar{x}$**.
+
+**Parameters** are usually **symbolized** using **Greek letters**
+
+> *e.g.*, the mean of a population is called ** $\mu$** (***mu***)
+
+***
+
+Latin-letter symbols indicate  **empirical measurements** of **observed data**. 
+
+Greek-letter symbols indicate **estimates** of and/or **inferences** about of **theoretical population data**.
+
+
+---
+### Ways to describe parameters and statistics
+
+Parameters and statistics are **typed** based on **common features**:
+
+> how they behave
+
+> how they are distributed
+
+> **how we analyze them**
+
+These **types** are not mutually exclusive and may depend on context
+
+Some major types will be discussed today, more to come over the rest of the course.
+
+---
+
+### Stevens’s (1946) Levels of Measurement
+
+.pull-left[
+```{r echo=FALSE, fig.align='center'}
+DiagrammeR::grViz("
+  digraph graph2 {
+  
+  graph [layout = dot, rankdir = TB, bgcolor = none, arrowhead=none]
+  
+  # node definitions with substituted label text
+  node [shape = mrecord, color=white, fontcolor=white, style = rounded]
+  edge [color=white, arrowhead=none, fontcolor=white]
+ # bgcolor = #446455
+  
+  a0 [label = 'Discrete Data']
+  a [label = 'Categorical\n(Nominal)\nData']
+  b [label = 'Rank\n(Ordinal)\nData']
+
+  a0 -> a 
+  a0 -> b 
+
+  }
+  
+  ",
+width = 500,
+height= 250)
+
+```
+
+]
+
+.pull-right[
+```{r echo=FALSE, fig.align='center'}
+DiagrammeR::grViz("
+  digraph G {
+  graph [bgcolor = none,  color = white, fontcolor = white]
+  compound=true;
+  node [ shape = 'Mrecord',  contcolor = white];
+ edge [color=white, arrowhead=none, fontcolor=white]
+  subgraph cluster_1 {
+    style = rounded;
+    label = 'Interval\nData';
+ 	Node_1_0;
+  };
+
+  NodeA [style = rounded, label = 'Continuous Data', fontcolor = white, color = white];
+
+  NodeA -> Node_1_0 [lhead = cluster_1];
+
+  
+  Node_1_0 [label = 'Ratio Data', fontcolor = white, color = white]
+}
+  ",
+width = 500,
+height= 275)
+
+```
+
+]
+
+***
+.slightly-smaller[
+The Stevens Taxonomy is part of the **basic vocabulary** of data analysis.
+
+> What we **know** about data informs how we **describe** and **analyze** data
+
+> NOTE: this is **basic**: it doesn't cover **all** possible categories and leaves out some **subcategories**.
+]
+---
+
+## Categorical (Nominal) Data
+
+Data that refer to **category membership** or to names\*. 
+
+We are mainly interested in frequencies (counts) or proportions of a sample or population that fall into each category.
+
+> Examples: 
+
+>> Ice cream flavors
+
+>> College majors
+
+.footnote[\*the literal meaning of "nominal"]
+---
+
+## Ordinal (Rank) Data
+
+Data are ranked **relative to each other** in some way
+
+Used when we want to know when something is larger/better/faster/etc. than something else but **not necessarily by how much**.
+
+> Examples:
+
+>> Standings in competitions
+
+>> Pain scale ratings
+
+
+---
+
+## Interval Data
+
+**Interval** data have measurements based on scale data
+
+The absolute intervals (think **subtraction**) between two measurements are meaningful
+
+However, the **ratio** of two interval data values is not meaningful
+
+> Examples:
+
+>> Temperatures in degrees Fahrenheit or Celsius
+
+>> Calendar time
+
+---
+
+## Ratio Data
+
+**Ratio** data are scale data that have a meaningful zero value
+
+Intervals in ratio data are *also* meaningful
+
+> **All ratio data are interval data**, but **not all** interval data are ratio data 
+
+<br>
+
+> Examples:
+
+>> Temperature in Kelvins
+
+>> Mass (and *lots* of other physical measurements)
+
+---
+
+### Moving between levels of measurement
+
+
+
+.slightly-smaller[
+In general, we can **reclassify** variables from classes with **more information** (*e.g.*, *ratio* data) to classes with **less information** (*e.g.*, *categorical* data).
+
+]
+
+.pull-left[
+
+.textbox[
+
+.center[
+
+
+
+.textbox-slightly-smaller[
+
+.blue[
+Women's Shot Put Results: 2021 Summer Olympics
+]
+
+]
+
+
+]
+
+
+```{r echo = FALSE}
+data.frame(Athlete = c("Gong Lijao",
+                       "Raven Saunders",
+                       "Valerie Adams"),
+           Distance = c(20.58,
+                        19.79,
+                        19.62),
+           Medal = c("Gold",
+                     "Silver",
+                     "Bronze")) %>% 
+  flextable() %>% 
+  set_header_labels(Distance = "Distance (m)") %>% 
+  font(fontname = "playfair",
+       part = "all") %>% 
+  fontsize(size = 12, part = "all") %>% 
+  color(color = "#913831", part = "header") %>% 
+  color(color = "#21344f", part = "body") %>% 
+  hline(border = fp_border(color = "#0047ab"), part = "header") %>% 
+  set_table_properties(layout = "autofit")
+```
+
+]
+
+]
+
+.pull-right[
+
+> In this example, if we know the **distances**, we can calculate the **ranks**. But if we *only* know the **ranks**, we *can't* calculate the **distances**.
+
+
+]
+
+.slightly-smaller[
+
+This is **really important** for **collecting** and **reporting** data: *even if we intend only to analyze ranks or categories*, it's still a good idea to collect and/or report **more precise** continuous data (if possible).
+
+]
+---
+
+### Other levels of measurement
+
+Classifying variables (as Stevens did) is helpful because it helps us know **how to analyze variables**.
+
+There are classes of variables *not* included in the standard taxonomy that have special analytic tools and approaches, for example:
+
+.slightly-smaller[
+
+> **Proportions**: they're like **continuous** data in many ways, but they have their own special formulas and they are *bounded* by $0$ and $1$.
+
+> **Binary Data**: kind of like a combination between *categorical* data and *rank data*; they have their very own type of regression model (*logistic regression*).
+
+> **Clock Data**: you have to subtract $12$ hours and divide by $60$ minutes and it's a whole thing.
+
+]
+
+
+---
+### Descriptive Statistics
+
+Key descriptors of a distribution:
+
+> Quantiles and Central tendency
+
+> Spread
+
+> Skewness
+
+> Kurtosis
+
+---
+
+### Quantiles
+
+
+A **quantile** is, simply, a **fraction** of a distribution. 
+
+Frequently-used quantiles get special names.
+
+.pull-left[
+
+|Quantile name | Fraction of distribution |
+|:------------:|:------------------------:|
+|Tercile  |   $1/3$    |
+|Quartile |   $1/4$    |
+|Quintile |   $1/5$    |
+|Decile   |  $1/10$    |
+|Percentile | $1/100$  |
+
+]
+
+.pull-right[
+
+Specific quantiles are named from **smallest to largest**. 
+
+> *e.g.*, the quartile with the smallest numbers in it is the **first quartile** and the quartile with the largest numbers is the **fourth quartile**.
+
+
+]
+---
+
+### Percentiles
+
+Following the same naming convention as other quantiles, the ** $kth$ percentile** (sometimes called *percentile rank*) is a value *greater than* ** $k \%$ ** of the other values in the distribution.
+
+```{r echo=FALSE, fig.width = 12, fig.height=6}
+
+labpos <- dnorm(qnorm(c(0.01, 0.16, 0.5, 0.89, 0.98)))+0.15
+dashx <- qnorm(c(0.01, 0.16, 0.5, 0.89, 0.98))
+dashy <- dnorm(qnorm(c(0.01, 0.16, 0.5, 0.89, 0.98)))+0.1
+
+data.frame(x = seq(-3, 3, 6/1000),
+           y = dnorm(seq(-3, 3, 6/1000))) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 2,
+            color = "#df5d22")+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  geom_segment(x = dashx[1],
+               xend = dashx[1],
+               y = 0,
+               yend = dashy[1],
+               color = "#dcdbd6",
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = dashx[2],
+               xend = dashx[2],
+               y = 0,
+               yend = dashy[2],
+               color = "#dcdbd6",
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = dashx[3],
+               xend = dashx[3],
+               y = 0,
+               yend = dashy[3],
+               color = "#dcdbd6",
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = dashx[4],
+               xend = dashx[4],
+               y = 0,
+               yend = dashy[4],
+               color = "#dcdbd6",
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = dashx[5],
+               xend = dashx[5],
+               y = 0,
+               yend = dashy[5],
+               color = "#dcdbd6",
+               linewidth = 1.5,
+               lty = 2)+
+  annotate("text",
+           x = dashx,
+           y = labpos,
+           label = c("1st\npercentile",
+                     "16th\npercentile",
+                     "50th percentile\n(median)",
+                     "89th\npercentile",
+                     "98th\npercentile"),
+           size = 22/.pt,
+           color = "#e2ce1b")+
+  ylim(0, 0.6)+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())
+```
+
+
+---
+### Central Tendency
+
+**Central Tendency** is a way of describing the **location** of a distribution *via* a measure of the position of a **center** point.
+
+.slightly-smaller[
+
+> By *location*, we mean in the sense of where it is on a number line (or multidimensional space).
+
+> We have several ways of defining what the *center* is.
+
+]
+
+The most common measures of central tendency are the **mode**, the **median**, and the **mean**.
+
+No one measure is a perfect representation of a distribution: **any kind of summary loses information**.
+
+
+.slightly-smaller[
+
+> Each of the following measures *minimizes* a different **loss function**.
+
+]
+
+---
+
+### The Mode
+
+A **mode** is a value that occurs most frequently in a distribution or in a region of a distribution.
+
+.pull-left[
+.slightly-smaller[
+for **observed data**, a mode is the **most frequently observed** value
+]
+
+```{r echo = FALSE, fig.height = 4, fig.width = 4, fig.align = "center"}
+set.seed(77)
+data.frame(x = rnorm(15000)) %>% 
+  ggplot(aes(x))+
+  geom_histogram(binwidth = 0.3,
+                 color = "#ffffff")+
+  annotate("text",
+           x=0,
+           y=2000,
+           vjust = .7,
+           label = "mode",
+           size = 48/.pt)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank())
+```
+
+]
+
+.pull-right[
+.slightly-smaller[
+
+
+for **population data**, a mode is the value **most likely** to be sampled
+
+]
+```{r echo = FALSE, fig.height = 4, fig.width = 4, fig.align = "center"}
+data.frame(x = seq(-3, 3, 6/1000),
+           y = dnorm(seq(-3, 3, 6/1000))) %>% 
+  ggplot(aes(x, y))+
+  geom_line(
+            linewidth = 1.5)+
+  annotate("text",
+           x=0,
+           y=0.5,
+           vjust = .6,
+           label = "mode",
+           size = 48/.pt)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())+
+  expand_limits(y = 0.45)
+```
+
+]
+
+
+---
+
+### The Mode
+
+A distribution can have **multiple modes** -- such a distribution is called **multimodal** -- when there is more than one clearly-defined peak:
+
+```{r echo=FALSE, fig.width = 12, fig.height = 6}
+ 
+unimode<-data.frame(x = rnorm(10000)) %>% 
+  ggplot(aes(x))+
+  geom_histogram(binwidth = 0.5,
+                 color = "#ffffff")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  labs(title = "Unimodal Distribution")+
+  theme(plot.title = element_text(color = "#ffffff",
+                                  size = 30),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank()) 
+
+bimode<-data.frame(x = c(rnorm(10000),
+                         rnorm(10000, mean = 5))) %>% 
+  ggplot(aes(x))+
+  geom_histogram(binwidth = 0.5,
+                 color = "#ffffff")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  labs(title = "Bimodal Distribution")+
+  theme(plot.title = element_text(color = "#ffffff",
+                                  size = 30),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())
+
+plot_grid(unimode, bimode, nrow = 1)
+```
+
+---
+
+### The Mode
+
+Using the mode as a **predictor** minimizes the **total number of errors** made by the predictions.
+
+If you predict the **most frequently occurring** value, you will be correct more often than if you predict **any other value**
+
+> Example: if you are a wedding DJ, you want to make sure you have the **most popular** song -- the **modal** choice. 
+
+> That *maximizes* the probability that a wedding-goer will hear their favorite song.
+
+> Don't play the *average* song: that would probably sound terrible.
+
+---
+
+### The Median
+
+The **median** is the value that splits a distribution into equal parts; also known as the **50th percentile**.
+
+.pull-left[
+
+
+```{r echo = FALSE, fig.height = 4, fig.width = 4, fig.align = "center", warning = FALSE, message = FALSE}
+set.seed(77)
+
+x <- rchisq(15000, df = 6)
+
+median_df<-data.frame(x = x) %>% 
+  mutate(above_med = ifelse(x > median(x),
+                            1,
+                            0))
+ggplot()+
+  geom_histogram(data = subset(median_df,
+                               median_df$above_med ==0),
+                 aes(x),
+                 binwidth = 0.5,
+                 fill = "#ffffff",
+                 color = "#dcdbd6")+
+  geom_histogram(data = subset(median_df,
+                               median_df$above_med ==1),
+                 aes(x),
+                 binwidth = 0.5,
+                 fill = "#fe6100",
+                 color = "#df5d22")+
+  annotate("text",
+           x=median(x)+0.5,
+           y=1000,
+           vjust = 0,
+           hjust = 0,
+           label = "median",
+           size = 36/.pt)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  geom_segment(data = median_df,
+               x = median(x),
+                xend = median(x),
+                y=0,
+                yend = 1000,
+                color = "#50C878",
+                lty = 2,
+               linewidth = 2.5)+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())+
+  expand_limits(y = 1100)+
+  xlim(0, 20)
+```
+
+]
+
+.pull-right[
+
+
+```{r echo = FALSE, fig.height = 4, fig.width = 4, fig.align = "center"}
+median_df_pop<- data.frame(x = seq(0, 18, 18/1000),
+           y = dchisq(seq(0, 18, 18/1000), df = 6)) 
+
+ggplot(median_df_pop,
+       aes(x, y))+
+  geom_line(
+            linewidth = 1.5)+
+  annotate("text",
+           x=qchisq(0.5, df = 6)+0.5,
+           y=dchisq(qchisq(0.5, df = 6), df = 6),
+           vjust = 0,
+           hjust = 0,
+           label = "median",
+           size = 36/.pt)+
+  geom_ribbon(data=subset(median_df_pop, x< qchisq(0.5, df = 6)),
+              aes(ymax=y),ymin=0,
+              fill="#ffffff",colour=NA)+
+    geom_ribbon(data=subset(median_df_pop, x>= qchisq(0.5, df = 6)),
+              aes(ymax=y),ymin=0,
+              fill="#fe6100",colour=NA)+
+  geom_segment(data = median_df,
+               x = qchisq(0.5, df = 6),
+                xend = qchisq(0.5, df = 6),
+                y=0,
+                yend = dchisq(qchisq(0.5, df = 6), df = 6),
+                color = "#50C878",
+                lty = 2,
+               linewidth = 2.5)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())
+```
+
+]
+
+---
+
+### The Median
+
+Using the mean as a **predictor** minimizes the **absolute values of errors** made by the predictions.
+
+If you predict the value **in the middle**, your mistakes will be off by less relative to *any other value* you may choose.
+
+> Example: the median is typically the centrality measure used as an *economic indicator*.
+
+> The **median income** for a group is considered the measure *most typical* of that group
+
+> Another way to think of it as *typical* is that it is *off by the least* for the people in a group.
+
+---
+
+### The Mean
+
+.pull-left[
+Almost always (see textbox $\to$) **the arithmetic mean (average)** of the values of a distribution.
+
+The sum of all values divided by the number of values $\left(\frac{\sum x}{n}\right)$
+
+
+Example:
+
+data: $1, 2, 3, 5, 9$ 
+
+average:  $\frac{1+2+3+5+9}{5} = \frac{20}{5} = 4$
+
+]
+
+.pull-right[
+
+.textbox[
+
+### The *other* means:
+
+**geometric** mean:
+
+$$G.M.=\left(\prod_{i=1}^nx_i\right)^\frac{1}{n}$$
+*e.g.*: data based on logarithms, exponential growth
+
+**harmonic** mean
+$$H.M.=\frac{n}{\sum_{i=1}^n \frac{1}{x_i}}$$
+*e.g.*: data based on rates and ratios 
+
+]
+]
+
+
+
+---
+
+### The Mean
+
+Using the mean as a **predictor** minimizes the **squared errors** made by the predictions.
+
+We don't usually think in terms like *squared errors*. 
+
+.pull-left[
+But, the concept is **essential** in statistics.
+
+> And, it's going to make a lot more sense when we start talking about **correlation and regression**
+
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 6}
+set.seed(77)
+x <- 1:10
+y <- x + rnorm(10, 0, 3)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_point(size = 5)+
+  geom_smooth(method = "lm", se = FALSE, linewidth = 2)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  annotate("text",
+           x = 5, 
+           y = Inf,
+           vjust = 1,
+           label = "this line minimizes\nsquared errors",
+           size = 30/.pt,
+           color = "#dcdbd6")+
+  geom_segment(x = 5,
+               xend = 5,
+               y = 11,
+               yend = 7,
+               arrow = arrow(),
+               color = "#dcdbd6",
+               linewidth = 1.5)+
+  theme(axis.ticks = element_blank())
+```
+
+]
+
+---
+
+### a very important thing about the mean
+
+If you take **any group of numbers**, for example:
+
+$$1, 2, 3, 4, 5$$
+and calculate the **mean of those numbers**:
+
+$$\frac{1+2+3+4+5}{5}=3$$
+and then **subtract the mean** from each of the original numbers:
+
+$$1-3, \ldots, 5-3=-2, -1, 0, 1, 2$$
+then the **sum of the resulting numbers will *always* be** zero:
+
+$$-2+-1+0+1+2=0$$
+---
+### a very important thing about the mean
+
+.pull-left[
+
+.slightly-smaller[
+
+A number minus the mean of the numbers in its set is called a **deviation from the mean**
+
+We will also use the term **residuals** to describe a set of **deviations**
+
+
+> **residual** is a *more general* term describing a set of differences from an estimate.
+
+
+
+Since the **sum of deviations** is ** $0$**, the **mean of deviations** is **also $0$ **.
+
+]
+
+]
+
+.pull-right[
+
+.textbox[
+
+
+
+### Proof:
+
+$$\bar{x}=\frac{1}{n}\sum_{i=1}^nx_i$$
+$$n\bar{x}=\sum_{i-1}^nx_i$$
+
+
+$$
+\begin{aligned}
+\sum_{i=1}^nx_i-\bar{x}&=\sum_{i-1}^nx_i-\sum_{i=1}^n\bar{x} \\
+&=n\bar{x}-n\bar{x}
+\end{aligned}
+$$
+
+$$\therefore \sum_{i=1}^nx_i-\bar{x}=0$$
+
+
+
+]
+
+]
+
+
+---
+
+### super-important mean things
+
+.slightly-smaller[
+
+As a **descriptive** statistic, the mean has **problems**.
+
+
+
+> Of the three main measures of *central tendency*, it's the most influenced by **outliers**
+
+> It's *meaningless* for **categorical data** and *not great* for **ordinal data**
+
+> The **loss function** - *minimizing squared errors* - is **difficult to intepret**
+
+]
+
+But, as an **inferential statistic**, the mean is **foundational**
+
+.slightly-smaller[
+
+> Along with the **variance**, it is the basis of *most of our statistical tests*.
+
+> The **mean** and the **variance** have particular importance in **probability theory** and thus for **making predictions**\*
+
+]
+
+.footnote[\*we will talk all about that at length]
+
+
+---
+
+### Spread
+
+**Spread** refers to how **dispersed** the data are:
+
+.center[
+*Are the data very close together or very spread apart?*
+]
+
+Common measures of spread:
+
+> Range
+
+> Interquartile range
+
+> Variance
+
+> Standard deviation
+
+---
+
+### Range
+
+In statistics, **the range** refers to the numeric distance between the smallest value and the largest value in a distribution
+
+Calculated as the largest value minus the smallest value.
+
+> Example:
+
+>> Data: $3, 5, 6, 8, 22, 24, 28, 35, 49$
+
+>> Range: $49 – 3 = 46$
+
+***
+
+The range is clearly susceptible\* to outliers, so it's not really anybody's favorite
+
+.footnote[\*so is the mean, but the mean has a whole lot of usefulness on it's side that the range doesn't]
+---
+
+### The Interquartile Range
+
+The **Interquartile Range (IQR)** describes the spread of the **middle half** of a distribution:
+
+> 25% of values fall below the 25th percentile
+
+> 75% of values fall below the 75th percentile
+
+As with the median, if there is no unique value for the 25th or 75th percentile, the average of the boundary points are taken.
+
+---
+
+### The Interquartile Range
+
+.slightly-smaller[
+
+There is a counting method: divide the distribution into halves at the median and then find the **medians of the halves**:
+
+> Median: $1, 1, 3, 4, 5, 5, 6, 7, 8, \fbox{9}, 10, 13, 14, 15, 16, 20, 22, 25, 999$
+
+>> 25th percentile (bottom half median): 
+>> $1,1,3,4,\fbox{5},5,6,7,8$
+
+>> 75th percentile: 16 (top half median)
+>> Top half: $10, 13, 14, 15, \fbox{16}, 20, 22, 25, 999$
+
+> $IQR = 16 – 5 = 11$
+
+Note that the range is $999 – 1 = 998$, but most of the data are much closer together than that.
+
+> But: the counting method is tedious: better to use technology instead.
+
+]
+
+---
+### Variance
+
+**Variance** can be used as a **general term** that is **exchangeable with spread**
+
+However, variance is also **a specific term** for the **expected squared deviation from the mean**
+
+.pull-left[
+
+> **Deviation** (or residual): $x-\mu$
+
+> **Squared deviation**: $(x-\mu)^2$
+
+> **Sums of squares**: $\sum(x-\mu)^2$
+
+]
+
+.pull-right[
+
+> ###**Population Variance**: 
+
+$$\sigma^2=\frac{\Sigma(x-\mu)^2}{N}$$ 
+
+]
+
+---
+
+### Variance
+
+The population variance calculation **underestimates** the variance taken from a sample
+
+> This makes it a **biased estimator** for the *sample* variance.
+
+> The observed variance is **tied to the mean** of the **sample that we** ***happened*** **to observe**
+
+.pull-leftcolumn[
+We **correct** for this bias by changing the denominator from ** $N$** to ** $n - 1$**:
+]
+
+.pull-rightcolumn[
+> ### **Sample Variance**: 
+$$\sigma^2=\frac{\Sigma(x-\bar{x})^2}{n-1}$$ 
+]
+---
+
+### Standard Deviation
+
+The **expected** (again, not quite the **average**) **deviation** between a given score and the mean of a distribution
+
+Given by the **square root of the variance**
+
+**Population Standard Deviation**:
+
+$$\sigma = \sqrt{\sigma^2} = \sqrt{\frac{\sum(x - \mu)^2}{N}}$$
+
+**Sample Standard Deviation**:
+
+$$s~or~SD = \sqrt{\sigma^2} = \sqrt{\frac{\sum(x - \bar{x})^2}{n-1}}$$
+
+---
+
+### Sampling Error and the Standard Error
+
+**Sample data** will (theoretically) never perfectly resemble the **population** from which they were sampled.
+
+> The difference is a bias known as **sampling error**
+
+***
+
+.pull-left[
+
+Smaller samples are **less likely to represent the population** – they are considered to have **greater sampling error**
+
+Bigger samples tend to be **more representative** – they tend to have **smaller sampling error**
+
+]
+
+.pull-right[
+The most common measure of sampling error is the **standard error** (***se***):
+
+$$se = \frac{SD}{\sqrt{n}}$$
+
+where ** $SD =$ standard deviation** and ** $n =$ number of samples**
+]
+
+---
+
+### Skewness
+
+A **symmetric** distribution has no (or, very little) **skew**:
+
+
+```{r echo=FALSE, message = FALSE, fig.align = "center", fig.width = 12, fig.height = 6}
+
+set.seed(77)
+x = rnorm(25000)
+skew <- round(skewness(x), 3)
+symmetry<-data.frame(x) %>% 
+  ggplot(aes(x))+
+  geom_histogram(binwidth = 0.3, color = "#ffffff")+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  labs(y = "Frequency")+
+  ylim(NA, 3500)+
+  theme(axis.ticks = element_blank())
+
+symmetry +
+  annotate("text",
+           x=0,
+           y=3250,
+           label = paste0("skewness = ", skew),
+           size = 24/.pt)
+```
+
+
+
+---
+
+### Skewness
+
+**Skewness** is the **extent** and **direction**\* of departures from symmetry:
+
+```{r echo=FALSE, fig.align='center', fig.width = 12, fig.height = 6, warning = FALSE, message = FALSE}
+x1<-rbeta(25000, 3, 6)
+x2<-rbeta(25000, 10, 2)
+
+skew1<-round(skewness(x1), 3)
+skew2<-round(skewness(x2), 3)
+
+pos.skew<-data.frame(x1) %>% 
+  ggplot(aes(x1))+
+  geom_histogram(binwidth = 0.02, color = "#ffffff")+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(0, 1)+
+  labs(x = "x",
+       title = "Positively Skewed")+
+  theme(plot.title = element_text(size = 100/.pt),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())
+
+neg.skew<-data.frame(x2) %>% 
+  ggplot(aes(x2))+
+  geom_histogram(binwidth = 0.02, color = "#ffffff")+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(0, 1)+
+  labs(x = "x",
+       title = "Negatively Skewed")+
+  theme(plot.title = element_text(size = 100/.pt),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank())
+
+plot_grid(pos.skew+
+  labs(subtitle = paste0("skewness = ", skew1))+
+    theme(plot.subtitle = element_text(color = "#ffffff",
+                                       size = 64/.pt)), 
+  neg.skew+
+  labs(subtitle = paste0("skewness = ", skew2))+
+    theme(plot.subtitle = element_text(color = "#ffffff",
+                                       size = 64/.pt)), 
+  nrow = 1)
+
+```
+
+---
+
+### Skewness
+
+.pull-left[
+**Generally speaking**, the relative positions of the **mean**, the **median**, and the **mode** can indicate the skew of a distribution.
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 2.5, fig.width = 6, warning = FALSE, message = FALSE}
+data.frame(x=seq(-3, 3, 6/10000),
+           y = dnorm(seq(-3, 3, 6/10000))) %>% 
+  ggplot(aes(x, y))+
+  geom_line(color = "#df5d22",
+            linewidth = 1.25)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  annotate("text",
+           x=0,
+           y=Inf,
+           vjust = 1,
+           label = "mean = median = mode",
+           size = 30/.pt)+
+  expand_limits(y = 0.5)+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank())
+```
+
+]
+
+.pull-left[
+```{r echo=FALSE, message = FALSE, warning = FALSE, fig.height = 4, fig.width = 6}
+data.frame(x=seq(0, 0.6, 0.6/10000),
+           y = dbeta(seq(0, 0.6, 0.6/10000),
+                     2, 10)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(color = "#df5d22",
+            linewidth = 1.25)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+    annotate("text",
+           x=c(1/10,
+               2/12,
+               qbeta(0.5, 2, 12)),
+           y=c(dbeta(1/10, 2, 12),
+               dbeta(2/12, 2, 12),
+               dbeta(qbeta(0.5, 2, 12), 2, 12)),
+          # vjust = -0.5,
+           hjust = c(0.5, -0.5, 0),
+           label = c("mode",
+                     "mean",
+                     "median"),
+           size = 30/.pt)+
+  expand_limits(y = 5)+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank())
+```
+
+]
+
+.pull-right[
+```{r echo=FALSE, message = FALSE, warning = FALSE, fig.height = 4, fig.width = 6}
+data.frame(x=seq(0.4, 1, 0.6/10000),
+           y = dbeta(seq(0.4, 1, 0.6/10000),
+                     10, 2)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(color = "#df5d22",
+            linewidth = 1.25)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+    annotate("text",
+           x=c(9/10,
+               10/12,
+               qbeta(0.5, 10, 2)),
+           y=c(dbeta(9/10, 10, 2),
+               dbeta(10/12, 10, 2),
+               dbeta(qbeta(0.5, 10, 2), 10, 2)),
+           vjust = c(-1, 1, -1),
+           hjust = c(0.5, 1.5, 1),
+           label = c("mode",
+                     "mean",
+                     "median"),
+           size = 30/.pt)+
+  expand_limits(y = 5)+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank())
+```
+
+]
+
+---
+
+### Skewness
+
+.slightly-smaller[
+On the **population-level**\* the skew of data is often related to **constraints**: in turn, that's what **skewness** can tell us about what we are studying.
+]
+
+
+.pull-left[
+
+```{r echo=FALSE, fig.width = 4, fig.height = 0.75}
+data.frame(x = seq(0, 1, 1/10000)) %>% 
+  mutate(y = dbeta(x, 2, 7)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(color = "#df5d22",
+            linewidth = 2)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())
+```
+
+]
+
+.pull-right[
+.slightly-smaller[
+**Positively-skewed data** are constrained by a **lower boundary**
+
+]
+]
+
+***
+
+.pull-left[
+
+.slightly-smaller[
+**Negatively-skewed data** are constrained by an **upper boundary**
+
+]
+
+]
+
+.pull-right[
+```{r echo=FALSE, fig.width = 4, fig.height = 0.75}
+data.frame(x = seq(0, 1, 1/10000)) %>% 
+  mutate(y = dbeta(x, 7, 2)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(color = "#df5d22",
+            linewidth = 2)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())
+```
+
+]
+
+***
+
+.pull-left[
+
+```{r echo=FALSE, fig.width = 4, fig.height = 0.75}
+data.frame(x = seq(-3, 3, 6/10000)) %>% 
+  mutate(y = dnorm(x)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(color = "#df5d22",
+            linewidth = 2)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        axis.ticks = element_blank())
+```
+
+]
+
+.pull-right[
+.slightly-smaller[
+**Symmetric data** are **unbothered** by constraints (even if they exist)
+
+]
+]
+
+
+
+.footnote[\*at the **sample level**, skew can just be random.]
+
+---
+
+### Skewness
+
+
+.pull-left[
+As noted earlier, skewness **can be quantified** in terms of the mean and the standard deviation (see text box for specifics).
+
+> That's not something we use a lot, and when we do it's usually to compare with **normally-distributed** data (and there are better ways to do that).
+
+
+]
+
+.pull-right[
+
+.textbox[
+
+### Population skewness:
+
+$$\tilde{\mu}_3=\frac{\frac{1}{n}\sum(x-\mu)^3}{\sigma^3}$$
+
+
+### Sample skewness:
+
+$$s.s.=\frac{n}{(n-1)(n-2)}\frac{\sum(x-\bar{x})^3}{s^3}$$
+
+NOTE: statistical software gives you the **sample skewness**
+
+
+]
+
+]
+
+The **direction** of skew is more frequently important than the **magnitude**.
+
+---
+
+### Kurtosis
+
+**Kurtosis** refers to the amount of a distribution that lies in the **tails** of that distribution.
+
+> *In this context*\*, **tail** refers to a part of the distribution that is relatively far from the mean and has relatively few values.
+
+```{r echo=FALSE, fig.width = 12, fig.height = 4}
+data.frame(x=seq(-3, 3, 6/10000)) %>% 
+  mutate(y=dnorm(x)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(color = "#df5d22",
+            linewidth = 2)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "gauguin.css")+
+  annotate("text",
+           x=c(-2, 0, 2),
+           y = 0.25,
+           label = c("a tail",
+                     "not a tail",
+                     "another tail"),
+           size = 36/.pt)+
+  geom_segment(x=-2,
+               xend = -2,
+               y = 0.2,
+               yend=dnorm(-2)+0.05,
+               arrow = arrow())+
+  geom_segment(x=2,
+               xend = 2,
+               y = 0.2,
+               yend=dnorm(2)+0.05,
+               arrow = arrow())+
+  theme(axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank())
+```
+
+.footnote[\*In other contexts, we will use the term *tail* slightly differently]
+---
+### Kurtosis
+
+A distribution can be **heavy-tailed** (*leptokurtic*), **medium-tailed** (*mesokurtic*), or **light-tailed** (*platykurtic*).
+
+```{r echo=FALSE, fig.align='center', fig.height = 4, fig.width = 12}
+light<-data.frame(x=seq(-3, 3, 8/10000)) %>% 
+  mutate(y= dgnorm(x, mu = 0, alpha = 1, beta = 6)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.25)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(-3, 3)+
+  ggtitle("light-tailed")+
+  labs(subtitle = "platykurtic")+
+  theme(plot.title = element_text(size = 96/.pt),
+        plot.subtitle = element_text(color = "#ffffff",
+                                     size = 48/.pt),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank())
+
+middle<-data.frame(x=seq(-3, 3, 8/10000)) %>% 
+  mutate(y= dgnorm(x, mu = 0, alpha = 1, beta = 2)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.25)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(-3, 3)+
+  ggtitle("medium-tailed")+
+  labs(subtitle = "mesokurtic")+
+  theme(plot.title = element_text(size = 96/.pt),
+        plot.subtitle = element_text(color = "#ffffff",
+                                     size = 48/.pt),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank())
+
+heavy<-data.frame(x=seq(-3, 3, 8/10000)) %>% 
+  mutate(y= dcauchy(x)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.25)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(-3, 3)+
+  ggtitle("heavy-tailed")+
+  labs(subtitle = "leptokurtic")+
+  theme(plot.title = element_text(size = 96/.pt),
+        plot.subtitle = element_text(color = "#ffffff",
+                                     size = 48/.pt),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank())
+
+plot_grid(light, middle, heavy, nrow = 1)
+```
+
+---
+### Kurtosis
+
+The key thing to know about kurtosis is that **the heavier the tails, the more likely it is to observe data values far away from the mean**.
+
+```{r echo=FALSE, fig.height = 6, fig.width = 12, warning = FALSE, message = FALSE}
+gnormlight<-data.frame(x=seq(-4, 4, 8/10000)) %>% 
+  mutate(y= dgnorm(x, mu = 0, alpha = 1, beta = 6)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.25)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(-4, 4)+
+  ggtitle("light-tailed")+
+  labs(subtitle = "population")+
+  theme(plot.subtitle = element_text(color = "#ffffff",
+                                     size = 48/.pt),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank())
+
+gnormheavy<-data.frame(x=seq(-4, 4, 8/10000)) %>% 
+  mutate(y=dgnorm(x, mu = 0, alpha = 1, beta = 0.75)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.25)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(-4, 4)+
+  ggtitle("heavy-tailed")+
+  labs(subtitle = "population")+
+  theme(plot.subtitle = element_text(color = "#ffffff",
+                                     size = 48/.pt),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank())
+
+gnormlighthist<-data.frame(x1= rgnorm(10000, mu = 0, alpha = 1, beta = 6)) %>% 
+  ggplot(aes(x1))+
+  geom_histogram(color = "#ffffff",
+                 binwidth = 0.2)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(-4, 4)+
+  ggtitle("light-tailed")+
+  labs(subtitle = "samples")+
+  theme(plot.subtitle = element_text(color = "#ffffff",
+                                     size = 48/.pt),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank())
+
+gnormheavyhist<-data.frame(x2=rgnorm(10000, mu = 0, alpha = 1, beta = 0.75)) %>% 
+  ggplot(aes(x2))+
+  geom_histogram(color = "#ffffff",
+                 binwidth = 0.2)+
+  theme_tufte()+
+  theme_xaringan(css_file = "gauguin.css")+
+  xlim(-4, 4)+
+  ggtitle("heavy-tailed")+
+  labs(subtitle = "samples")+
+  theme(plot.subtitle = element_text(color = "#ffffff",
+                                     size = 48/.pt),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank())
+
+plot_grid(gnormlight, gnormheavy, gnormlighthist,gnormheavyhist, nrow=2)
+```
+
+
+---
+
+### Kurtosis
+
+.pull-left[
+Like *skewness*, **kurtosis can be quantified** (see textbox at right) in terms of the mean and the standard deviation.
+
+*Also* like *skewness*, the precise quantity is less frequently useful than is comparing the kurtosis between distributions.
+
+
+> *i.e.*, knowing that one distribution is more kurtotic than another.
+
+
+
+]
+.pull-right[
+
+.textbox[
+
+### Population kurtosis:
+
+$$\tilde{\mu}_4=\frac{\sum(x-\mu)^4}{\left(\sum(x-\mu)^2\right)^2}$$
+
+
+### Sample kurtosis:
+
+$$s.k.=\frac{n(n+1)(n-1)}{(n-2)(n-3)}\frac{\sum(x-\bar{x})^4}{s^4}$$
+
+NOTES: 
+
+1. statistical software gives you the **sample kurtosis**
+
+2. the kurtosis of a normal distribution is 3. The **excess kurtosis** is the observed kurtosis **minus 3**
+]
+
+]
