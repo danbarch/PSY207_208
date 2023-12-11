@@ -1,0 +1,1864 @@
+---
+title: "Independent-groups One-Way ANOVA"
+author: ""
+date: "`r Sys.Date()`"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [pomegranate_on_print.css]
+nature: 
+  highlightStyle: tomorrow-night-blue
+  hilightLines: true
+  highlightSpans: true
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, fig.showtext = TRUE)
+library(tidyverse) # load tidyverse package
+library(MASS)
+library(ggplot2)
+library(ggthemes)
+library(kableExtra)
+library(flextable)
+library(cowplot)
+library(xaringanthemer)
+library(xaringan)
+#library(gg3D)
+library(leaflet)
+library(maps)
+library(fontawesome)
+library(ggrepel)
+library(DescTools)
+library(renderthis)
+library(ftExtra)
+library(BayesFactor)
+library(ggridges)
+
+samplingnorm<-function(n,size, mean, sd){
+  sampmean<-rep(NA,n)	                #create an empty vector where 
+                                      #we will store the mean values 
+  
+  sampsd<-rep(NA,n) 	                #create an empty vector where 
+                                      #we will store the sd values 
+  
+  for (i in 1:n){ 		                #indicate that we are repeating 
+                                      #the operation n times
+    
+    samp<-rnorm(size,mean,sd)	        #sample 'size' number of 
+                                      #random (r) scores from a 
+                                      #normal (norm) given mean and sd 
+    
+    sampmean[i]<-mean(samp)		        #take the mean of those scores
+    
+    sampsd[i]<-sd(samp)}			        #take the sd of those scores
+  
+  sampdf<-data.frame(sampmean,sampsd)	#make a data frame of the means 
+                                      #and the standard deviations
+  
+  return(sampdf)}                     #the output of the function is 
+                                      #the data frame
+
+set.seed(77)
+n<-10
+example_sample_SS<-samplingnorm(100000, n, 0, 1) %>% 
+  mutate(SS = (sampsd^2)*(n-1)) %>% 
+  dplyr::select(SS)
+
+## To create pdf version:
+
+# setwd("~/Documents/PSY 208/PSY_207-208_23-24/Lectures")
+# renderthis::to_pdf("IG_One-Way_ANOVA.Rmd", complex_slides = TRUE)
+
+## To create PowerPoint version:
+
+# renderthis::to_pptx("IG_One-Way_ANOVA.Rmd", complex_slides = TRUE)
+```
+
+### Remember $t$-tests?
+
+The $t$-tests that we performed were on a **single difference**:
+
+> One-sample $t$: difference between a mean and a hypothesized value (like 0)
+
+> Repeated-measures $t$: difference between two measures of the same individuals
+
+> Independent-samples $t$: difference between two groups
+
+---
+
+### Limitations of $t$-tests
+
+What happens when we want to compare **more than two things**? For example:
+
+> Children, young adults and older adults
+
+> Three different dosages of a medication
+
+> Four different lag times between study and test in a memory study
+
+Each $t$-test will produce false alarms at the $\alpha$ rate
+
+> Every time we conduct a $t$-test, we **increase the false alarm rate**
+
+---
+
+### Options for comparing more than 2 things
+
+<ol type = "1">
+
+<li>Conduct multiple t-tests, each with a smaller `\alpha` rate</li>
+
+> Changing the $\alpha$ rate is known as the **Dunn-Bonferroni Correction**
+
+<li>More common and useful: use an **ANalysis Of VAriance** </li>
+
+.center[
+### ANalysis Of VAriance = ANOVA
+
+]
+
+---
+
+### ANOVA
+
+An ANOVA is a **test of statistical significance of the difference between three or more groups**
+
+> The results of an ANOVA with two groups is the same as the output of a $t$-test
+
+>> Fun fact: The statistical software SAS doesn't even have a $t$-test command - it's all ANOVA.
+
+ANOVA tests for an **omnibus (overall) effect** while preserving the $\alpha$ rate.
+
+---
+
+### Independent-groups ANOVA
+
+***a.k.a. Between-groups ANOVA; Completely Randomized ANOVA***
+
+We use a between-subjects ANOVA when each participant is subject to **only one condition**, *e.g.*:
+
+> One dosage of a drug
+
+> One city of origin
+
+> One period of physical exercise
+
+---
+
+### IG ANOVA: Basic Logic
+
+As with the independent-groups $t$-test, we assume that different groups of data are sampled from **separate normal distributions with the same variance.**
+
+```{r echo=FALSE, fig.height = 2.5, fig.width = 12}
+x1<-seq(-6, 0, 6/1000)
+x2<-seq(-3, 3, 6/1000)
+x3<-seq(0, 6, 6/1000)
+
+y1<-dnorm(x1, -3, 1)
+y2<-dnorm(x2)
+y3<-dnorm(x3, 3, 1)
+
+data.frame(x=c(x1, x2, x3),
+           y=c(y1, y2, y3),
+           group = rep(c("A1", "A2", "A3"), each = 1001)) %>% 
+  ggplot(aes(x, y, color=group))+
+  geom_line(linewidth = 1.5)+
+  scale_color_viridis_d(begin = 0.45, end = 1, option="plasma")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  theme(legend.position = "none")+
+  labs(y = "density",
+       x=bquote(y[ij]))
+```
+
+***
+
+.pull-left[
+
+We call that variance within each group the **within variance**, or, ** $\sigma^2_{within}$ **, or, ** $\sigma^2_\epsilon$ **.
+
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 2.5}
+data.frame(x2, y2) %>% 
+  ggplot(aes(x2, y2))+
+  geom_line(linewidth = 1.5, color = "#fe6100")+
+  annotate("text", x=0, y=0.1,
+           label = bquote(sigma[epsilon]^2),
+           size=48/.pt,
+           family="serif",
+           color = "#ffffff")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  geom_segment(aes(x=-0.9,
+                   xend = 0.9,
+                   y=dnorm(1),
+                   yend=dnorm(1)),
+               arrow=arrow(),
+               color = "#ffffff")+
+    geom_segment(aes(x=0.9,
+                   xend = -0.9,
+                   y=dnorm(1),
+                   yend=dnorm(1)),
+               arrow=arrow(),
+               color = "#ffffff")+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank())
+```
+
+]
+---
+
+### IG ANOVA: Basic Logic
+
+The **variance of the population means** is called the **between variance**, or ** $\sigma^2_{between}$ **, or ** $\sigma^2_\alpha$ ** (not related to false-alarm rate $\alpha$)
+
+***
+
+.pull-left[
+
+
+If the groups all have the **same mean**, then ** $\sigma^2_\alpha=0$ **
+
+```{r echo=FALSE, fig.height = 4}
+
+x2<-seq(-3, 3, 6/1000)
+x1<-x2-0.1
+x3<-x2+0.1
+
+y1<-dnorm(x1, -0.1, 1)
+y2<-dnorm(x2)
+y3<-dnorm(x3, 0.1, 1)
+
+data.frame(x=c(x1, x2, x3),
+           y=c(y1, y2, y3),
+           group = rep(c("A1", "A2", "A3"), each = 1001)) %>% 
+  ggplot(aes(x, y, color=group))+
+  geom_line(linewidth = 1.5)+
+  scale_color_viridis_d(begin = 0.45, end = 1, option="plasma")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  theme(legend.position = "none")+
+  labs(y = "density",
+       x=bquote(y[ij]))+
+  geom_segment(aes(x=-0.1,
+               xend=-0.1,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#BF3984FF")+
+    geom_segment(aes(x=0,
+               xend=0,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F58C46FF")+
+    geom_segment(aes(x=0.1,
+               xend=0.1,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F0F921FF")+
+  annotate("text",
+           x=0.15,
+           y=0.25,
+           label=bquote(mu[1]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#BF3984FF")+
+  annotate("text",
+           x=0.15,
+           y=0.15,
+           label=bquote(mu[2]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#F58C46FF")+
+  annotate("text",
+           x=0.15,
+           y=0.05,
+           label=bquote(mu[3]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color = "#F0F921FF")
+```
+
+]
+
+
+.pull-right[
+
+
+If the groups have **different means**, then ** $\sigma^2_\alpha>0$ **
+
+
+```{r echo=FALSE, fig.height = 4}
+
+x1<-seq(-6, 0, 6/1000)
+x2<-seq(-3, 3, 6/1000)
+x3<-seq(0, 6, 6/1000)
+
+y1<-dnorm(x1, -3, 1)
+y2<-dnorm(x2)
+y3<-dnorm(x3, 3, 1)
+
+data.frame(x=c(x1, x2, x3),
+           y=c(y1, y2, y3),
+           group = rep(c("A1", "A2", "A3"), each = 1001)) %>% 
+  ggplot(aes(x, y, color=group))+
+  geom_line(linewidth = 1.5)+
+  scale_color_viridis_d(begin = 0.45, end = 1, option="plasma")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  theme(legend.position = "none")+
+  labs(y = "density",
+       x=bquote(y[ij]))+
+  geom_segment(aes(x=-3,
+               xend=-3,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#BF3984FF")+
+    geom_segment(aes(x=0,
+               xend=0,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F58C46FF")+
+    geom_segment(aes(x=3,
+               xend=3,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F0F921FF")+
+  annotate("text",
+           x=-2.85,
+           y=0.15,
+           label=bquote(mu[1]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#BF3984FF")+
+  annotate("text",
+           x=0.15,
+           y=0.15,
+           label=bquote(mu[2]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#F58C46FF")+
+  annotate("text",
+           x=3.15,
+           y=0.15,
+           label=bquote(mu[3]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color = "#F0F921FF")
+```
+
+]
+
+
+
+---
+
+### IG ANOVA: Basic Logic
+
+The **variance in the observed scores** can be broken down into **two components**:
+
+> **between-groups variance**: the variance in the scores that is caused by the data coming from **different groups**
+
+>> if the parents are very far apart, the sampled data are also likely to be very far apart.
+
+> **within-groups variance**: the variance in the scores that is caused by the data coming from **different parts of the same group**.
+
+>> samples from the *same distribution* are still different *from each other*.
+
+---
+
+### IG ANOVA: Basic Logic
+
+.slightly-smaller[
+If the parent distributions are different, *i.e.*, ** $\sigma^2_\alpha>0$ **...
+]
+
+```{r echo=FALSE, fig.width = 12, fig.height = 2.5}
+x1<-seq(-6, 0, 6/1000)
+x2<-seq(-3, 3, 6/1000)
+x3<-seq(0, 6, 6/1000)
+
+y1<-dnorm(x1, -3, 1)
+y2<-dnorm(x2)
+y3<-dnorm(x3, 3, 1)
+
+data.frame(x=c(x1, x2, x3),
+           y=c(y1, y2, y3),
+           group = rep(c("A1", "A2", "A3"), each = 1001)) %>% 
+  ggplot(aes(x, y, color=group))+
+  geom_line(linewidth = 1.5)+
+  scale_color_viridis_d(begin = 0.45, end = 1, option="plasma")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  theme(legend.position = "none")+
+  labs(y = "density",
+       x=bquote(y[ij]))+
+  geom_segment(aes(x=-3,
+               xend=-3,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#BF3984FF")+
+    geom_segment(aes(x=0,
+               xend=0,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F58C46FF")+
+    geom_segment(aes(x=3,
+               xend=3,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F0F921FF")+
+  annotate("text",
+           x=-2.85,
+           y=0.15,
+           label=bquote(mu[1]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#BF3984FF")+
+  annotate("text",
+           x=0.15,
+           y=0.15,
+           label=bquote(mu[2]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#F58C46FF")+
+  annotate("text",
+           x=3.15,
+           y=0.15,
+           label=bquote(mu[3]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color = "#F0F921FF")
+```
+
+.slightly-smaller[
+then the **between-groups variance** will **exceed** the **within-groups variance**
+]
+```{r echo=FALSE, fig.width = 12, fig.height = 3}
+
+s1<-rnorm(50, -3, 1)
+s2<-rnorm(50)
+s3<-rnorm(50, 3, 1)
+
+data.frame(x=c(s1, s2, s3),
+           label = rep(c("s1", "s2", "s3"), each = 50)) %>% 
+  ggplot(aes(x, fill=label))+
+  geom_dotplot(stackgroups = TRUE, binwidth = 0.175, 
+               binpositions = "all")+
+  scale_fill_manual(values = c("#BF3984FF",
+                               "#F58C46FF",
+                               "#F0F921FF"),
+                    guide = NULL)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  labs(y="frequency", x = bquote(y[ij]))+
+  expand_limits(y=1.5)
+
+```
+
+---
+
+### IG ANOVA: Basic Logic
+
+
+.slightly-smaller[
+If the parent distributions are the same, *i.e.*, ** $\sigma^2_\alpha=0$ **...
+]
+
+```{r echo=FALSE, fig.width = 12, fig.height = 2.5}
+x2<-seq(-3, 3, 6/1000)
+x1<-x2-0.1
+x3<-x2+0.1
+
+y1<-dnorm(x1, -0.1, 1)
+y2<-dnorm(x2)
+y3<-dnorm(x3, 0.1, 1)
+
+data.frame(x=c(x1, x2, x3),
+           y=c(y1, y2, y3),
+           group = rep(c("A1", "A2", "A3"), each = 1001)) %>% 
+  ggplot(aes(x, y, color=group))+
+  geom_line(linewidth = 1.5)+
+  scale_color_viridis_d(begin = 0.45, end = 1, option="plasma")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  theme(legend.position = "none")+
+  labs(y = "density",
+       x=bquote(y[ij]))+
+  geom_segment(aes(x=-0.1,
+               xend=-0.1,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#BF3984FF")+
+    geom_segment(aes(x=0,
+               xend=0,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F58C46FF")+
+    geom_segment(aes(x=0.1,
+               xend=0.1,
+               y=0,
+               yend=dnorm(0)),
+               lty=2,
+               color="#F0F921FF")+
+  annotate("text",
+           x=0.15,
+           y=0.25,
+           label=bquote(mu[1]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#BF3984FF")+
+  annotate("text",
+           x=0.15,
+           y=0.15,
+           label=bquote(mu[2]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color="#F58C46FF")+
+  annotate("text",
+           x=0.15,
+           y=0.05,
+           label=bquote(mu[3]),
+           size=40/.pt,
+           family="serif",
+           hjust=0,
+           color = "#F0F921FF")
+```
+
+.slightly-smaller[
+then the **between-groups variance** will be **about the same** as the **within-groups variance**
+]
+```{r echo=FALSE, fig.width = 12, fig.height = 3}
+set.seed(77)
+s1<-rnorm(50, -0.1, 1)
+s2<-rnorm(50)
+s3<-rnorm(50, 0.1, 1)
+
+data.frame(x=c(s1, s2, s3),
+           label = rep(c("s1", "s2", "s3"), each = 50)) %>% 
+  ggplot(aes(x, fill=label))+
+  geom_dotplot(stackgroups = TRUE, binwidth = 0.09, 
+               binpositions = "all")+
+  scale_fill_manual(values = c("#BF3984FF",
+                               "#F58C46FF",
+                               "#F0F921FF"),
+                    guide = NULL)+
+  theme_tufte(ticks = FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  labs(y="frequency", x = bquote(y[ij]))+
+  xlim(-3, 3)+
+  expand_limits(y=1.5)
+
+```
+
+---
+
+### ANOVA: Measures of Variance
+
+> Sums of Squares: the total of the squared deviations 
+
+$$SS=\sum(y-\bar{y})^2$$
+.center[
+note: this is the *numerator* of the **variance** formula
+]
+
+> Mean Squares: the squared deviations per **degree of freedom**
+
+$$MS=\frac{\sum(y-\bar{y})^2}{df}$$
+.center[
+note: this is the exact form of the **variance** formula - the $df$ will depend on the quantity being measured
+]
+
+---
+### The $F$-ratio
+
+ANOVA compares **relative sizes** of $MS_{between}$ and $MS_{within}$ in terms of the **ratio** of the two numbers.
+
+.center[
+
+### That ratio is called the `\\(F\\)`-ratio 
+
+]
+> If **the group from which the data come** is **meaningless** (*i.e.*, all the groups have about the same mean), then ** $MS_{between} \approx MS_{within}$ ** and ** $F \approx 1$ **
+
+> If **the groups have very different means**, then ** $MS_{between} >> MS_{within}$ ** and ** $F>>1$ **
+---
+### The $F$-ratio
+
+**Variances** are $\chi^2$-distributed.
+
+It's the **same concept** as **sample means** being distributed as **normal** distributions:
+
+> For example, if we take a bunch of samples of data, the **sums of squares** will be ** $\chi^2$-distributed.** with $\bar{SS}=df$ and $s^2_{SS}=2df$
+
+```{r echo=FALSE, fig.height = 3.5, fig.width = 12, fig.align='center'}
+
+ssmean<-mean(example_sample_SS$SS)
+ssvar<-var(example_sample_SS$SS)
+
+example_sample_SS %>% 
+  ggplot(aes(SS))+
+  geom_histogram(binwidth = 0.2, color = "#648fff")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  labs(caption = "100,000 sample SS with n = 10 from a standard normal distribution",
+       y="frequency")+
+  geom_segment(aes(x=ssmean,
+                   xend=ssmean,
+                   y=0,
+                   yend=Inf),
+               linewidth = 1.5,
+               lty = 2)+
+  geom_segment(aes(x=ssmean-ssvar/2,
+                   xend=ssmean+ssvar/2,
+                   y=1000,
+                   yend=1000),
+               linewidth = 1.5,
+               lty = 2)+
+  annotate("text",
+           family="serif",
+           x=10, y=2000,
+           size=32/.pt,
+           vjust=0.5,
+           hjust=0,
+           label=paste0("mean = ", round(ssmean, 1)))+
+    annotate("text",
+           family="serif",
+           x=20, y=1000,
+           hjust=0,
+           size=32/.pt,
+           label=paste0("var = ", round(ssvar, 1)))+
+  ggtitle("df = 9")+
+  theme(title=element_text(size=36))
+```
+
+---
+
+### The $F$-ratio
+
+
+1. **Mean squares** estimates are $\chi^2$-distributed
+
+ > The **sufficient statistic** for the $\chi^2$ distribution is $df$.
+
+2. The ** $F$-ratio** is the ratio of **two mean-squares estimates**
+
+3. Therefore, the **distribution of $F$-ratios** - the *** $F$-distribution *** - is shaped like the **ratio of two $\chi^2$ distributions**
+
+>  **To know the shape of a given $f$-distribution**, we need to know the $df$ for the $\chi^2$ distribution in the **numerator** and for the $\chi^2$ distribution in the **denominator**.
+  
+> These are called $df_{numerator}$ and $df_{denominator}$, respectively.
+  
+---
+
+### The $F$-ratio
+
+```{r echo=FALSE, fig.width=12}
+dfnumplot<-data.frame(x=seq(0, 8, 8/1000),
+                      y=dchisq(seq(0, 8, 8/1000), df=3)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 2)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  labs(title=bquote(chi^2*"(df = 3)"),
+       y="density",
+       x=bquote(chi^2))+
+  theme(title = element_text(family="serif",
+                             size=30),
+        axis.title = element_text(family="serif"),
+        axis.ticks = element_blank())
+
+dfdenomplot<-data.frame(x=seq(0, 25, 25/1000),
+                      y=dchisq(seq(0, 25, 25/1000), df=11)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 2)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+    labs(title=bquote(chi^2*"(df = 11)"),
+       y="density",
+       x=bquote(chi^2))+
+  theme(title = element_text(family="serif",
+                             size=30),
+        axis.title = element_text(family="serif"),
+        axis.ticks = element_blank())
+
+fdata<-data.frame(x=seq(0, 10, 10/1000),
+                      y=df(seq(0, 10, 10/1000), df1=3, df2 = 11))
+
+fcrit<-qf(0.95, 3, 11)
+fplot<-fdata %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 2)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+    labs(title=bquote(F*"("*df[num]==3*", "~df[denom]==11*")"),
+       y="density",
+       x="F")+
+  theme(title = element_text(family="serif",
+                             size=30),
+        axis.title = element_text(family="serif"),
+        axis.ticks = element_blank())
+
+chispart<-plot_grid(dfnumplot,
+                    dfdenomplot,
+                    rows=2)
+
+plot_grid(chispart,
+          fplot)
+```
+
+---
+
+### ANOVA and Regression
+
+ANOVA is a special case of multiple regression where $n$ is equal in all groups\* and **the groups themselves are the predictors.**
+
+The **model statement** for the IG One-Way ANOVA is:
+
+$$y_{ij}=\mu+\alpha_j+\epsilon_{ij}$$
+.center[
+
+each **observed value $y_{ij}$ ** is predicted by the **grand mean $\mu$ ** plus the **effect of the treatment factor $\alpha_j$ ** plus some **measurement error $\epsilon_{ij}$ **
+
+]
+.footnote[
+
+\*Technically speaking, an ANOVA *must* have equal $n$, but we can get ANOVA-type results using multiple regression models (we'll get to that later).
+
+]
+
+---
+### Notes on Subscript Notation
+
+$i$ refers to a **participant**; goes from $1 \to n$
+
+$j$ refers to the **level** of the independent variable, goes from $1 \to j$ where $j$ is the number of levels
+
+> $y_{2,3}$ refers to the **observation** for **participant 2** in **condition 3**.
+
+A bullet $(\bullet)$ in place of a letter means that a value is **averaged** over all levels of the replaced letter
+
+> $y_{\bullet 3}$ is the **mean of all participants $i$** in **condition 3**
+
+> $y_{\bullet \bullet}$ is the **grand mean** (the average of the observations for **all participants** across **all conditions**).
+---
+### IG One-Way ANOVA Hypotheses
+
+> Null Hypothesis:
+
+$$H_0: \sigma^2_\alpha=0$$
+
+.center[
+**there is** *no* **variance associated with the treatment factor $\alpha$ **
+]
+
+> Alternative Hypothesis:
+
+$$H_1: \sigma^2_\alpha>0$$
+
+.center[
+**there is** *some* **variance associated with the treatment factor $\alpha$ **
+]
+
+.footnote[
+usually, if the null hypothesis has an $=$ sign, the alternative has a $\ne$ sign. but, since we are dealing with variances here, only $\sigma^2>0$ is possible as an inequality.
+]
+
+---
+
+### ANOVA Assumptions
+
+1. Homoscedasticity
+
+2. Normality
+
+3. Random Assignment
+
+And we've dealt with all of these before. Moving on!
+
+---
+
+### ANOVA Example
+
+A memory researcher is looking at the **effect of increased time** between study and test
+
+> Dependent variable (DV) = **number of words** correctly recalled in 1 minute
+
+> Independent variable (IV): **time** 
+
+>> The levels of the IV are 3 conditions: **30s, 20s, 10s**
+
+> ** $n=5$ ** different individuals in each condition
+
+> False alarm rate: $\alpha = 0.05$
+
+---
+
+### ANOVA Example
+
+Observed data:
+
+```{r echo=FALSE}
+
+s10 <- c(18, 14, 19, 17, 15)
+s20 <- c(16, 17, 16, 14, 18)
+s30 <- c(14, 12, 8, 13, 15)
+
+IG_oneway_AOV_ex_df<-data.frame(s10,
+                                s20,
+                                s30)
+
+IG_oneway_AOV_ex_df %>% 
+  flextable() %>% 
+  set_header_labels(s10 = "10s",
+                    s20 = "20s", 
+                    s30 = "30s") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  align(align = "center", part = "all") %>% 
+  fontsize(size = 18, part = "all") %>% 
+  width(width = 1, unit = "in")
+```
+
+---
+### ANOVA Example
+
+```{r echo=FALSE}
+GM<-mean(c(IG_oneway_AOV_ex_df$s10, 
+           IG_oneway_AOV_ex_df$s20, 
+           IG_oneway_AOV_ex_df$s30))
+```
+
+Step 1: calculate $SS_{total}: \sum \left( y_{ij}-y_{\bullet \bullet}\right)^2$
+
+
+```{r echo=FALSE}
+
+
+IG_oneway_AOV_ex_df<-IG_oneway_AOV_ex_df %>% 
+  mutate(s10resid = round(s10-GM, 2)) %>% 
+  mutate(s20resid = round(s20-GM, 2)) %>% 
+  mutate(s30resid = round(s30-GM, 2)) %>% 
+  mutate(s10residsq = round(s10resid^2, 2)) %>% 
+  mutate(s20residsq = round(s20resid^2, 2)) %>% 
+  mutate(s30residsq = round(s30resid^2, 2)) %>% 
+  relocate(c(s10resid, s10residsq), .after = s10) %>% 
+  relocate(c(s20resid, s20residsq), .after = s20) %>% 
+  relocate(c(s30resid, s30residsq), .after = s30)
+
+IG_oneway_AOV_ex_df %>% 
+  flextable() %>% 
+  set_header_labels(s10 = "10s",
+                    s10resid = "$y_{i1}-y_{\\bullet \\bullet}$",
+                    s10residsq = "$(y_{i1}-y_{\\bullet \\bullet})^2$",
+                    s20 = "20s", 
+                    s20resid = "$y_{i2}-y_{\\bullet \\bullet}$",
+                    s20residsq = "$(y_{i2}-y_{\\bullet \\bullet})^2$",
+                    s30 = "30s",
+                    s30resid = "$y_{i3}-y_{\\bullet \\bullet}$",
+                    s30residsq = "$(y_{i3}-y_{\\bullet \\bullet})^2$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = c(3, 6, 9), part = "body") %>% 
+  align(align = "center", part = "all") %>% 
+  fontsize(size = 16, part = "header") %>%
+  fontsize(size=18, part = "body") %>% 
+    add_header_row(values = c("$y_{\\bullet \\bullet} = 15.07$"),
+                 colwidths = c(9)) %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "header")
+```
+
+$$\sum(y_{ij}-y_{\bullet \bullet})^2=`r round(sum(c(IG_oneway_AOV_ex_df$s10residsq, IG_oneway_AOV_ex_df$s20residsq, IG_oneway_AOV_ex_df$s30residsq)))`$$
+
+---
+
+### ANOVA Example
+
+Step 2: calculate $SS_{A}: n\sum \left( y_{\bullet j}-y_{\bullet \bullet}\right)^2$
+
+
+```{r echo=FALSE}
+ybull1<-round(mean(IG_oneway_AOV_ex_df$s10), 2)
+ybull2<-round(mean(IG_oneway_AOV_ex_df$s20), 2)
+ybull3<-round(mean(IG_oneway_AOV_ex_df$s30), 2)
+
+IG_oneway_AOV_ex_df<-IG_oneway_AOV_ex_df %>% 
+  mutate(s10between = round(ybull1-GM, 2)) %>% 
+  mutate(s20between = round(ybull2-GM, 2)) %>% 
+  mutate(s30between = round(ybull3-GM, 2)) %>% 
+  mutate(s10betweensq = round(s10between^2, 2)) %>% 
+  mutate(s20betweensq = round(s20between^2, 2)) %>% 
+  mutate(s30betweensq = round(s30between^2, 2))
+
+
+IG_oneway_AOV_ex_df %>% 
+    dplyr::select(s10, s10between, s10betweensq,
+                  s20, s20between, s20betweensq,
+                  s30, s30between, s30betweensq) %>% 
+  flextable() %>% 
+  set_header_labels(s10 = "10s",
+                    s10between = "$y_{\\bullet 1}-y_{\\bullet \\bullet}$",
+                    s10betweensq = "$(y_{\\bullet 1}-y_{\\bullet \\bullet})^2$",
+                    s20 = "20s", 
+                    s20between = "$y_{\\bullet 2}-y_{\\bullet \\bullet}$",
+                    s20betweensq = "$(y_{\\bullet 2}-y_{\\bullet \\bullet})^2$",
+                    s30 = "30s",
+                    s30between = "$y_{\\bullet 3}-y_{\\bullet \\bullet}$",
+                    s30betweensq = "$(y_{\\bullet 3}-y_{\\bullet \\bullet})^2$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = c(3, 6, 9), part = "body") %>% 
+  align(align = "center", part = "all") %>% 
+  fontsize(size = 16, part = "header") %>%
+  fontsize(size=18, part = "body") %>% 
+  add_header_row(values = c("$y_{\\bullet 1} = 16.6$",
+                            "$y_{\\bullet 2} = 16.2$",
+                            "$y_{\\bullet 3} = 12.4$"),
+                 colwidths = c(3, 3, 3)) %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "header")
+```
+
+$$\sum(y_{\bullet j}-y_{\bullet \bullet})^2=`r round(sum(c(IG_oneway_AOV_ex_df$s10betweensq, IG_oneway_AOV_ex_df$s20betweensq, IG_oneway_AOV_ex_df$s30betweensq)))`$$
+
+---
+
+### ANOVA Example
+
+Step 3: calculate $SS_{e}: \sum \left( y_{i j}-y_{\bullet j}\right)^2$
+
+
+```{r echo=FALSE}
+ybull1<-round(mean(IG_oneway_AOV_ex_df$s10), 2)
+ybull2<-round(mean(IG_oneway_AOV_ex_df$s20), 2)
+ybull3<-round(mean(IG_oneway_AOV_ex_df$s30), 2)
+
+IG_oneway_AOV_ex_df<-IG_oneway_AOV_ex_df %>% 
+  mutate(s10within = round(s10-ybull1, 2)) %>% 
+  mutate(s20within = round(s20-ybull2, 2)) %>% 
+  mutate(s30within = round(s30-ybull3, 2)) %>% 
+  mutate(s10withinsq = round(s10within^2, 2)) %>% 
+  mutate(s20withinsq = round(s20within^2, 2)) %>% 
+  mutate(s30withinsq = round(s30within^2, 2))
+
+
+IG_oneway_AOV_ex_df %>% 
+    dplyr::select(s10, s10within, s10withinsq,
+                  s20, s20within, s20withinsq,
+                  s30, s30within, s30withinsq) %>% 
+  flextable() %>% 
+  set_header_labels(s10 = "10s",
+                    s10within = "$y_{i 1}-y_{\\bullet 1}$",
+                    s10withinsq = "$(y_{i 1}-y_{\\bullet 1})^2$",
+                    s20 = "20s", 
+                    s20within = "$y_{i 2}-y_{\\bullet 2}$",
+                    s20withinsq = "$(y_{i 2}-y_{\\bullet 2})^2$",
+                    s30 = "30s",
+                    s30within = "$y_{i 3}-y_{\\bullet 2}$",
+                    s30withinsq = "$(y_{i 3}-y_{\\bullet 2})^2$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = c(3, 6, 9), part = "body") %>% 
+  align(align = "center", part = "all") %>% 
+  fontsize(size = 16, part = "header") %>%
+  fontsize(size=18, part = "body") %>% 
+  add_header_row(values = c("$y_{\\bullet 1} = 16.6$",
+                            "$y_{\\bullet 2} = 16.2$",
+                            "$y_{\\bullet 3} = 12.4$"),
+                 colwidths = c(3, 3, 3)) %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "header")
+```
+
+$$\sum(y_{i j}-y_{\bullet i})^2=`r round(sum(c(IG_oneway_AOV_ex_df$s10withinsq, IG_oneway_AOV_ex_df$s20withinsq, IG_oneway_AOV_ex_df$s30withinsq)))`$$
+
+---
+
+### ANOVA Example
+
+Note: $SS_{A}+SS_{e}= SS_{total}$
+
+$$`r round(sum(c(IG_oneway_AOV_ex_df$s10betweensq, IG_oneway_AOV_ex_df$s20betweensq, IG_oneway_AOV_ex_df$s30betweensq)))` + `r round(sum(c(IG_oneway_AOV_ex_df$s10withinsq, IG_oneway_AOV_ex_df$s20withinsq, IG_oneway_AOV_ex_df$s30withinsq)))` = `r round(sum(c(IG_oneway_AOV_ex_df$s10residsq, IG_oneway_AOV_ex_df$s20residsq, IG_oneway_AOV_ex_df$s30residsq)))`$$
+
+
+
+This is an illustration of the principle of **orthogonality**:
+
+> The **between** and **within** variances are **separate** and **non-overlapping** sources of variance in the $y_{ij}$ variable
+
+> The two sources are **totally unrelated to each other**, and that means they are **uncorrelated**.
+
+---
+
+### ANOVA Table
+
+```{r echo=FALSE}
+Source<-c("Between Groups",
+          "Within Groups",
+          "Total")
+
+df <- c("$j-1$",
+        "$j(n-1)$",
+        "$jn-1$")
+
+SS <-c("$SS_A$",
+       "$SS_e$",
+       "$SS_{total}$")
+
+MS<-c("$MS_A$",
+       "$MS_e$",
+       NA)
+
+Fratio<-c("$MS_A/MS_e$",
+          NA,
+          NA)
+
+EMS<-c("$n\\sigma^2_\\alpha + \\sigma^2_\\epsilon$",
+       "$\\sigma^2_{\\epsilon}$",
+       NA)
+
+#EMS<-rep(NA, 3)
+ANOVA_table<-data.frame(Source,
+                        df,
+                        SS,
+                        MS,
+                        Fratio,
+                        EMS)
+
+ANOVA_table %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+#  bg(bg = "#648fff", j = c(3, 6, 9), part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+The **ANOVA table** is a summary of the analysis.
+
+We don't really include ANOVA tables in research output anymore; it's more useful for our own understanding of our results.
+
+---
+
+### ANOVA Table
+
+```{r echo=FALSE}
+ANOVA_table %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = 1, part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+For the independent-groups one-way ANOVA analysis, the **sources of variance** are:
+
+> **Between** groups (or, **Factor A**, or, **whatever the name of the IV is**).
+
+> **Within** groups (or, **error**)
+
+> **Total**: the variance of the **DV**
+
+---
+
+### ANOVA Table
+
+```{r echo=FALSE}
+ANOVA_table %>% 
+  mutate(df = c("$j-1 = 2$",
+        "$j(n-1) = 12$",
+        "$jn-1 = 14$")) %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = 2, part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+.slightly-smaller[
+
+The ** $df$ ** for each source represent the denominators for variance estimates:
+
+> $MS_A$ estimates the **variance of the means**; $df_A$ is the **# of means $- 1$ **.
+
+> $MS_e$ estimates the (shared) **variance within each group**; $df_e$ is the **# of observations per group $- 1$ summed across groups**.
+
+> $df_{total}$ is denominator we *would* use to calculate the overall variance: it's the **total # of observations $- 1$ **.
+
+]
+
+---
+### ANOVA Table
+
+```{r echo=FALSE}
+ANOVA_table %>%
+  mutate(df = c("$2$",
+        "$12$",
+        "$14$")) %>% 
+  mutate(SS = c("$SS_A = 54$",
+       "$SS_e = 55$",
+       "$SS_{total} = 109$")) %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = 3, part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+We have already spent plenty of time calculating the **sums of squares**. 
+
+---
+### ANOVA Table
+
+```{r echo=FALSE}
+ANOVA_table %>%
+  mutate(df = c("$2$",
+        "$12$",
+        "$14$")) %>% 
+  mutate(SS = c("$54$",
+       "$55$",
+       "$109$")) %>% 
+      mutate(MS = c("$SS_A/df_A=27$",
+       "$SS_e/df_e=5$",
+       NA)) %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", i = 1:2, j = 4, part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+.slightly-smaller[
+The **mean squares** (MS) estimates are simply the **sums of squares for each source divided by the $df$ for each source**
+
+MS estimates are the **variance statistics** that we are analyzing - they represent the relative influence of **between-group variation** and **within-group variation** on the DV values.
+]
+
+.footnote[
+NOTE: we have no use for *total* mean squares so we don't bother.
+]
+---
+### ANOVA Table
+
+```{r echo=FALSE}
+ANOVA_table %>%
+  mutate(df = c("$2$",
+        "$12$",
+        "$14$")) %>% 
+  mutate(SS = c("$54$",
+       "$55$",
+       "$109$")) %>% 
+      mutate(MS = c("$27$",
+       "$5$",
+       NA)) %>% 
+  mutate(Fratio = c("$MS_A/MS_e=5.4$",
+                    NA,
+                    NA)) %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", i=1, j = 5, part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+The ** $F$-ratio** is the **test statistic** of ANOVA.
+
+Rejecting $H_0$ depends on the **upper-tail probability** of ** $F \ge F_{obs}$ ** for the ** $F$-distribution with $df_{num}$ and $df_{denom}$ **.
+
+> For these data, $p(F \ge F_{obs}) \le 0.05$; **reject $H_0$ **
+
+---
+### ANOVA Table
+
+```{r echo=FALSE}
+ANOVA_table %>%
+  mutate(df = c("$2$",
+        "$12$",
+        "$14$")) %>% 
+  mutate(SS = c("$54$",
+       "$55$",
+       "$109$")) %>% 
+      mutate(MS = c("$27$",
+       "$5$",
+       NA)) %>% 
+  mutate(Fratio = c("$5.4*$",
+                    NA,
+                    NA)) %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", i = 1:2, j = 6, part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+
+
+The **Expected Mean Squares** are a **formulaic representation** of how the **population variance components** produce **observed mean squares** values
+
+Please note: *no calculated numbers ever go in this column!* This column has **formulas** that serve as **guides** to the meanings of the **MS column**.
+
+
+
+---
+### Expected Mean Squares
+In the case of the IG one-way ANOVA, the **population variance components** are:
+
+> ** $\sigma^2_\alpha$ **: the variance of the population means
+
+> ** $\sigma^2_\epsilon$ **: the within-population variance
+
+***
+
+
+.pull-left[
+.slightly-smaller[
+The EMS formula for **factor A** is
+
+$$n\sigma^2_\alpha+\sigma^2_\epsilon$$
+
+$\text{MS}_A$ is predicted by $n$, the variance of the population means, and the error variance. 
+]
+]
+
+.pull-right[
+.slightly-smaller[
+The EMS formula for **error** is
+
+$$\sigma^2_\epsilon$$
+
+$\text{MS}_e$ is an estimate of the population error variance. 
+]
+]
+
+---
+### Expected Mean Squares
+
+Please recall that $H_0$ for the IG one-way ANOVA is $\sigma^2_\alpha=0$.
+
+We can use the **EMS** to construct a formula that **isolates** $\sigma^2_\alpha$:
+
+$$\frac{\text{EMS}_A}{\text{EMS}_e}=\frac{n\sigma^2_\alpha+\sigma^2_\epsilon}{\sigma^2_\epsilon}$$
+
+> If $\sigma^2_\alpha=0$, then $\frac{n\sigma^2_\alpha+\sigma^2_\epsilon}{\sigma^2_\epsilon}=\frac{\sigma^2_\epsilon}{\sigma^2_\epsilon}=1$ 
+
+> If $\sigma^2_\alpha>0$, then $\frac{n\sigma^2_\alpha+\sigma^2_\epsilon}{\sigma^2_\epsilon}>1$ 
+
+$\text{EMS}_A$ is approximated by $\text{MS}_A$ and $\text{EMS}_e$ is approximated by $\text{MS}_e$.
+
+***That's* why $\text{MS}_A/\text{MS}_e$ produces the $F$ that we use to test $H_0$**
+
+---
+
+### Expected Mean Squares
+
+For the IG one-way ANOVA, *there aren't a lot of options for calculating $F$ *
+
+For more complex designs, the EMS determines **what the appropriate denominator MS** (*aka* **error term**) is for each **factor**.
+
+> The appropriate denominator MS is the one that has the **exact same EMS** as the **EMS for a given factor** *minus* the term containing the **variance component** for that factor
+
+>> For the IG one-way design, the **Factor A EMS** $n\sigma^2_\alpha + \sigma^2_\epsilon$ and the **within-groups EMS** $\sigma^2_\epsilon$ differ only by $n\sigma^2_\alpha$.
+
+>> For really complex designs, we will have to **make** an appropriate error term out of **combinations** of MS
+
+---
+
+### Fixed and Random Variance Components
+
+.slightly-smaller[
+
+You may recall that there is a **population variance equation** - $\sigma^2=\sum\frac{(x-\mu)^2}{N}$ - and a **sample variance equation** - $s^2=\sum\frac{(x-\bar{x})^2}{n-1}$.
+
+In a **very similar sense**, a **population variance component** can belong to a: 
+
+> **fixed effect**: **all or almost all** possible values of a factor are represented in the analysis.
+
+> **random effect**: a **random subset** of the possible values of a factor are represented.
+
+Whether a factor is **fixed** or **random** will affect the **expected mean squares** (not for one-way designs - we'll worry about that later) and our estimates of **variance components**.
+
+NOTE: **error** is *always* considered **random** - we never alter $\sigma^2_\epsilon$.
+]
+---
+
+### ANOVA: Effect Size
+
+
+In ANOVA, the **effect size** is a measure of the variance between groups relative to the within-groups variance.
+
+.pull-left[
+
+```{r echo=FALSE, fig.height = 6.5}
+
+set.seed(50)
+a1<-rnorm(50)
+a2<-rnorm(50)
+a3<-rnorm(50)
+
+nofx<-data.frame(data = c(a1, a2, a3),
+                 condition = rep(c("a1", "a2", "a3"), each = 50))
+ggplot(nofx, aes(x=data, y=condition, fill = condition))+
+  geom_density_ridges(stat = "binline")+
+  scale_fill_manual(values = c("#BF3984FF",
+                               "#F58C46FF",
+                               "#F0F921FF"),
+                    guide= NULL)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  ggtitle("No effect")+
+  theme(title = element_text(size=36))
+```
+
+]
+
+.pull-right[
+
+```{r echo=FALSE, fig.height = 6.5}
+
+set.seed(77)
+a1<-rnorm(50, -1, 1)
+a2<-rnorm(50)
+a3<-rnorm(50, 1, 1)
+
+bigfx<-data.frame(data = c(a1, a2, a3),
+                 condition = rep(c("a1", "a2", "a3"), each = 50))
+ggplot(bigfx, aes(x=data, y=condition, fill = condition))+
+  geom_density_ridges(stat = "binline")+
+  scale_fill_manual(values = c("#BF3984FF",
+                               "#F58C46FF",
+                               "#F0F921FF"),
+                    guide= NULL)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  ggtitle("Large Effect")+
+  theme(title = element_text(size=36))
+```
+
+
+]
+
+
+---
+### ANOVA: Effect Size
+
+.slightly-smaller[
+**Effect size** for ANOVA is **extremely similar** to (and, often, the **literal same thing as**) effect size for **regression**.
+$R^2$ is the **proportion of variance explained by the model** (out of the total variance).
+
+$$R^2=\frac{SS_{total}-SS_{error}}{SS_{total}}$$
+
+The ANOVA effect-size measure ** $\eta^2$ ** is the **proportion of variance explained by the factors**:
+
+$$\eta^2=\frac{SS_A}{SS_{total}}$$
+
+]
+
+For the IG one-way ANOVA, *these are the exact same thing*, because ** $\text{SS}_{A} = \text{SS}_{total}-\text{SS}_{e}$**.
+
+---
+
+### Calculating $\eta^2$ for the example data
+
+$$\eta^2=\frac{\text{SS}_A}{\text{SS}_{total}}$$
+** $$\eta^2=\frac{54}{109}=0.50$$ **
+
+that's it. $\eta^2$ is pretty easy. 
+
+BUT, $\eta^2$ is a **biased estimator** - it's always a *little bigger* (but not like a super-ton bigger) than it should be, **especially for small $n$ **.
+
+---
+
+### ANOVA: Effect Size
+
+.slightly-smaller[
+
+** $\omega^2$** is the *other* commonly-used effect size measure for ANOVA\* **Conceptually**, it is the same as $\eta^2$, but is based on **estimates of variance components** instead of observed sums of squares:
+
+$$\omega^2=\frac{\sigma^2_\alpha}{\sigma^2_\alpha+\sigma^2_\epsilon}$$
+***
+
+** $\text{MS}_A$** is an **estimate** of the equation $n\sigma^2_\alpha+\sigma^2_\epsilon$ $(\text{MS}_A=\widehat{n\sigma^2_\alpha+\sigma^2_\epsilon})$
+
+** $\text{MS}_e$** is an **estimate** of the term $\sigma^2_\epsilon$ $(\text{MS}_e=\widehat{\sigma^2_\epsilon})$.
+
+We're going to use the observed MS values to solve for the **variance components**.
+
+]
+
+***
+.footnote[
+\*there's a third effect-size measure called $\epsilon^2$. Pretty much nobody cares about it.
+]
+
+---
+
+### Calculating $\omega^2$ with the example data
+
+
+** $$\widehat{\sigma^2_\epsilon} = \text{MS}_e = 5$$ **
+
+$$n\sigma^2_\alpha + \sigma^2_\epsilon \approx \text{MS}_A=27$$
+
+** $$\widehat{\sigma^2_\alpha}= \frac{\text{MS}_A-\widehat{\sigma^2_\epsilon}}{n}=\frac{27-5}{5}=4.4$$ **
+
+If **factor A** is **fixed**, then we multiply $\widehat{\sigma^2_\alpha}$ by the **correction term** $\frac{df_A}{df_A+1}$:
+
+** $$\widehat{\sigma^2_\alpha}(fixed)=\sigma^2_\alpha\left(\frac{df_A}{df_A+1}\right)=4.4\left(\frac{4}{5}\right)=3.5$$ **
+
+
+If **factor A** is **random**, then no correction is needed.
+
+
+
+---
+
+### Calculating $\omega^2$ with the example data
+
+If **factor A is fixed**, we use the *corrected* $\widehat{\sigma^2_\alpha}$:
+
+** $$\omega^2=\frac{\widehat{\sigma^2_\alpha}}{\widehat{\sigma^2_\alpha}+\widehat{\sigma^2_\epsilon}}=\frac{3.5}{3.5+5}=0.41$$**
+
+If **factor A is random**, we use the *uncorrected* $\widehat{\sigma^2_\alpha}$:
+
+** $$\omega^2=\frac{\widehat{\sigma^2_\alpha}}{\widehat{\sigma^2_\alpha}+\widehat{\sigma^2_\epsilon}}=\frac{4.4}{4.4+5}=0.47$$**
+
+---
+
+### Guidelines for interpreting $\eta^2$ and $\omega^2$
+
+Cohen thought $\eta^2$ and $\omega^2$ were basically the same thing. So, the guidelines are the same:
+
+.center[
+0.01: **small effect**
+
+0.06: **medium effect**
+
+0.14: **large effect**
+
+]
+
+Note: even though $\eta^2$ and $R^2$ are very similar (and in the case of the IG one-way model, identical), the Cohen guidelines are generally smaller for ANOVA effect size because Cohen just thought ANOVA effects tended to be smaller.
+
+---
+
+### IG one-way ANOVA in `R`
+
+```{r}
+obs_data<-c(s10, s20, s30)
+groups<-rep(c("s10", "s20", "s30"), each = 5)
+summary(aov(obs_data~groups))
+```
+
+---
+### The Kruskal-Wallis Test
+
+**The Kruskal-Wallis Test** is the **nonparametric analogue** to the IG one-way ANOVA.
+
+It's an *extension* of the **Wilcoxon-Mann-Whitney Test**
+
+Go look up (it's in the book) how to calculate the Kruskal-Wallis test statistic by hand - it's hilarious.
+
+```{r}
+kruskal.test(obs_data, groups)
+```
+
+---
+
+### Bayesian IG one-way ANOVA in `R`
+
+```{r}
+anova_data<-data.frame(obs_data, groups = as.factor(groups))
+anovaBF(obs_data~groups, data = anova_data, progress = FALSE)
+```
+---
+
+### *Post Hoc* Tests
+
+***Post Hoc*** = Latin for "after this" (more or less, I'm told. I didn't take Latin.)
+
+**After** you have established that there **is a significant effect**, you may want to know more about the **nature** of an effect.
+
+The **omnibus** effect indicated by significant $F$-statistics can take many forms!
+
+For example, two datasets have the **exact same** ANOVA table:
+
+```{r echo=FALSE}
+set.seed(50)
+a1<-rnorm(50, -1, 1.22)
+a2<-rnorm(50, -1, 1.211)
+a3<-rnorm(50,  1, 1.211)
+a4<-rnorm(50, 1,  1.215)
+
+twoxtwo<-data.frame(data = c(a1, a2, a3, a4),
+                 condition = rep(c("a1", "a2", "a3", "a4"), each = 50))
+
+summary(aov(data~condition, data = twoxtwo))
+```
+
+---
+
+### *Post Hoc* Tests
+
+These are two **obviously different** data arrangements with the **same $F$ and $\eta^2$**
+
+.pull-left[
+```{r echo=FALSE, fig.height = 6, fig.width = 6, fig.align='center'}
+set.seed(50)
+a1<-rnorm(20, -2, 1.22)
+a2<-rnorm(20, -2, 1.211)
+a3<-rnorm(20,  2, 1.211)
+a4<-rnorm(20, 2,  1.215)
+
+twoxtwo<-data.frame(data = c(a1, a2, a3, a4),
+                 condition = rep(c("a1", "a2", "a3", "a4"), each = length(a1)))
+
+
+ggplot(twoxtwo, aes(x=data, y=condition, fill = condition))+
+  geom_density_ridges(stat = "binline")+
+  scale_fill_manual(values = c("#BF3984FF",
+                               "#F58C46FF",
+                               "#F0F921FF",
+                               "#ffffff"),
+                    guide= NULL)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  labs(title = bquote(F==66*","~eta^2==0.72))+
+  theme(title = element_text(family="serif",
+                             size=36))
+```
+
+]
+.pull-right[
+```{r echo=FALSE, fig.height = 6, fig.width = 6, fig.align='center'}
+
+set.seed(77)
+b1<-rnorm(20, -2, 1.1)
+b2<-rnorm(20, -2, 1.1)
+b3<-rnorm(20, -2, 1.1)
+b4<-rnorm(20, 2.36, 1.1)
+
+oneout<-data.frame(data = -c(b1, b2, b3, b4),
+                 condition = rep(c("a1", "a2", "a3", "a4"), each = length(b1)))
+
+ggplot(oneout, aes(x=data, y=condition, fill = condition))+
+  geom_density_ridges(stat = "binline")+
+  scale_fill_manual(values = c("#BF3984FF",
+                               "#F58C46FF",
+                               "#F0F921FF",
+                               "#ffffff"),
+                    guide= NULL)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  labs(title = bquote(F==66*","~eta^2==0.72))+
+  theme(title = element_text(family="serif",
+                             size=36))
+```
+
+]
+
+---
+
+### *Post Hoc* Tests
+
+There are many different kinds of ***post hoc*** tests, including:
+
+> Comparing experimental conditions to a single control condition
+
+> Comparing the averages of one set of conditions to another set of conditions
+
+> Comparing the differences between each possible pair of condition means
+
+The choice of *post hoc* test **depends on the story you are trying to tell with the data**
+
+---
+
+### Dunn-Bonferroni Test
+
+*a.k.a.* the **Dunn-Bonferroni** *correction*
+
+> Pairwise $t$-tests with an adjusted $\alpha$-rate
+
+The false alarm rate is corrected to:
+
+$$\frac{\alpha}{number~of~hypotheses}$$
+the number of *possible* pairwise comparisons is $\frac{n(n-1)}{2}$
+
+The *least powerful* of the pairwise procedures.
+
+---
+### Dunn-Bonferroni Test
+
+```{r}
+pairwise.t.test(obs_data, groups, 
+                p.adjust="bonferroni", 
+                pool.sd = FALSE, #TRUE pools the variance across ALL groups
+                paired = FALSE)
+```
+
+---
+
+### Tukey's HSD
+
+**Tukey’s HSD** is a way of determining whether the difference between two condition means is (honestly) significant 
+
+> It uses the **studentized range statistic $(q)$**
+
+>> $q$ is closely related to *Student’s* $t$ (hence the name).
+
+>> The critical value of $q$ depends on the number of conditions and on $df_{e}$
+
+$H_0$: there **is no difference** between a pair of means $(\mu_1-\mu_2=0)$
+
+$H_1$: there **is a difference** between a pair of means $(\mu_1-\mu_2\ne0)$
+
+---
+
+### Tukey's HSD
+
+For any **pair** of **group means:**
+
+$$q_{obs}=\frac{\bar{y}_{\bullet 1}-\bar{y}_{\bullet 2}}{\sqrt{\frac{MS_e}{n}}}$$
+
+.center[
+
+** $MS_e$ ** comes directly **from the ANOVA table**
+
+** $n$ ** is the number of observations **per condition**
+
+]
+
+$q$ is the **test statistic** - we can get its $p$-value (which depends on $n$, the $\alpha$-rate, $df_e$, and the number of means $j$) from software or compare to a critical-value table.
+
+---
+
+### Tukey's HSD
+
+```{r}
+TukeyHSD(aov(obs_data~groups))
+```
+
+---
+
+### Hayter-Fisher Test
+
+**Almost exactly the same thing** as **Tukey's HSD**, _but_:
+
+> The $F$-test **must** be significant 
+
+>>(not really a problem: we shouldn't be doing *post hoc* tests for insignificant ombibus effects anyway!)
+
+> The number of groups $j$ in the HSD is replaced by ** $j-1$**
+
+>> That **increases power**
+
+It's kind of obscure, and I don't think there's an `R` function for it, and you have to use the name "F\*sh\*r", but at least you get more power.
+
+---
+
+### Orthogonal Contrasts
+
+**Orthogonality:** the condition of being uncorrelated.
+
+**Orthogonal** elements account for **nonoverlapping variance**.
+
+> We can construct **many possible sets** of **orthogonal** contrasts - they are more powerful than other types of *post hoc* tests - but not *all* possible comparison sets are **orthogonal**.
+
+Orthogonal contrasts are also referred to as **planned** or ***a priori*** contrasts.
+
+---
+
+### Orthogonal Contrasts
+
+Step 1: Create **positive** and **negative** coefficients for all contrasts $(\Psi)$ to represent the comparisons you want such that the **sum of the negative coefficients for each contrast is $-1$** and the **sum of the positive coefficients for each contrast is $1$**.
+
+> The sums ensure that the variance is non-overlapping
+
+For example, in a 4-group design, the coefficients could be:
+
+.center[
+
+$(\Psi_1)$ groups 1 & 2 *vs.* groups 3 & 4: $\left[-\frac{1}{2}, -\frac{1}{2}, \frac{1}{2}, \frac{1}{2}\right]$
+
+$(\Psi_2)$ group 3 *vs.* group 4: $\left[0, 0, 1, -1 \right]$
+
+$(\Psi_3)$ group 1 *vs.* group 2: $\left[1, -1, 0, 0\right]$
+]
+
+---
+
+### Orthogonal Contrasts
+
+Step 2: For each $\Psi_i$, **multiply each group mean by the coefficient** and **sum the results** to get $\Psi_i$
+
+Step 3: To test significance:
+
+$$SS_{\Psi_i}=\Psi_i^2=MS_{\Psi_i}$$
+.center[
+(contrasts have $df=1$)
+]
+
+$$F(1, df_e)=\frac{\Psi_i^2}{MS_e \sum \frac{c_{ij}^2}{n_j}}$$
+
+.center[
+Where $c=coefficient$
+]
+
+---
+
+### Dunnett Common Control Test
+
+For use when you have a **pre-specified control group**\*
+
+$$t_{Dunnett}=\frac{\bar{y}_{control}-\bar{y}_{experimental}}{\sqrt{\frac{2MS_e}{n}}}$$
+
+It's a **modified** $t$-test (the formula looks pretty similar), and the $t_{Dunnett}$ statistic is just a $t$-statistic from **a** $t$-distribution.
+
+> **Which** $t$-distribution to use depends on the number of groups, the directionality of $H_0/H_1$, and (of course) $df$. But *we* don't have to worry about that thanks to **technology**.
+
+.footnote[\*no naming a control group *after* the experiment!]
+
+---
+
+### Dunnett Common Control Test
+
+.slightly-smaller[
+Let's assume that we considered the first condition of our example a **control** condition. (just as an exercise!)
+
+]
+
+```{r}
+library(DescTools)
+DunnettTest(list(s10, #first in list = control
+                 s20, s30))
+```
+
+---
+
+### Scheff&eacute; Contrasts
+
+.slightly-smaller[
+
+**Scheff&eacute; Contrasts** are **non-orthogonal**: they can be *any comparison you want to make!*
+
+> Also: if the ANOVA is significant, there is **at least one** significant Scheff&eacute; contrast that can be made.
+
+But, the tradeoff is that they are **less powerful** than other contrasts. 
+
+The Scheff&eacute; contrast uses the **same equation as orthogonal contrasts**, but **adjusts the critical $F$** to be *more conservative*.
+
+]
+
+$$F=\frac{\Psi_i^2}{MSe \sum \frac{c_{ij}^2}{n_j}}$$
+
+** $$F_{crit}=(j-1)F_{crit}(j-1, df_e)$$**
+
+---
+### Notes on *Post Hoc* Tests
+
+.slightly-smaller[
+It is possible to have a **significant overall ANOVA effect**, but **no significant results** of *post hoc* tests
+
+> This doesn’t make your ANOVA finding any less valid
+
+> It just means that the differences between each group are incremental, but overall, the difference is large.
+
+There also can be **significant** *post hoc* results with a **not-significant $F$**
+
+> But, **please don’t.**
+
+> If we cannot reject the null hypothesis that there is **no difference** between all the conditions, we shouldn’t be saying that are **some significant differences** – this defeats the purpose of ANOVA.
+
+]
+
+---
+
+### Power Analysis
+
+ANOVA models can get **very complicated**
+
+Many packages are available: find one that suits your needs.
+
+> If none are appropriate – which is not unusual – **simulations** are your **friends**.
+
+> Relatively simple for one-way between-groups ANOVA:
+
+> `power.anova.test()` is a base `R` command
+
+---
+
+### Power Analysis Example
+
+To use `power.anova.test()`, **stipulate** estimates for ** $\sigma_\alpha^2$** (the variance of the group means and ** $\text{MS}_{within}$** (similarly to how we stipulated $d$ for $t$-tests).
+```{r}
+power.anova.test(groups = 3, 
+                 within.var = 10, #expected MSe
+                 between.var = 4, #expected variance of means
+                 sig.level = 0.05, power = 0.9)
+```
+

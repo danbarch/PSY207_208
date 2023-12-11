@@ -1,0 +1,1146 @@
+---
+title: "Differences Between Two Things I"
+subtitle: "the $t$-distribution, One-sample $t$-tests, and Confidence Intervals on Means"
+author: ""
+date: "`r Sys.Date()`"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [soundmachine.css]
+    nature: 
+      # highlightStyle: none
+      hilightLines: true
+      highlightSpans: true
+
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(tidyverse) # load tidyverse package
+library(MASS)
+library(ggplot2)
+library(ggthemes)
+library(kableExtra)
+library(flextable)
+library(cowplot)
+library(xaringanthemer)
+#library(gg3D)
+library(leaflet)
+library(maps)
+library(fontawesome)
+library(ggrepel)
+library(DescTools)
+library(renderthis)
+library(ggtext)
+#library(gganimate)
+
+## Function to sample from a Chi Squared Distribution
+samplingchi<-function(n,size,df){
+sampmean<-rep(NA,n)	                #create an empty vector where 
+                                    #we will store the mean values
+
+sampsd<-rep(NA,n)                   #create an empty vector where 
+                                    #we will store our sd values
+
+for (i in 1:n){		                  #indicate that we are repeating 
+                                    #the operation n times
+  
+samp<-rchisq(size,df)	              #sample 'size' number of random (r) 
+                                    #scores from a chi squared (chisq) 
+                                    #distribution with df = df 
+
+sampmean[i]<-mean(samp)			        #take the mean of those scores
+
+sampsd[i]<-sd(samp)}			          #take the sd of those scores
+
+sampdf<-data.frame(sampmean,sampsd)	#make a data frame out of the means 
+                                    #and the standard deviations
+
+return(sampdf)}	                    #the output of the function 
+                                    #is the data frame
+
+## Function to Sample from a Normal Distribution
+
+samplingnorm<-function(n,size, mean, sd){
+  sampmean<-rep(NA,n)	                #create an empty vector where 
+                                      #we will store the mean values 
+  
+  sampsd<-rep(NA,n) 	                #create an empty vector where 
+                                      #we will store the sd values 
+  
+  for (i in 1:n){ 		                #indicate that we are repeating 
+                                      #the operation n times
+    
+    samp<-rnorm(size,mean,sd)	        #sample 'size' number of 
+                                      #random (r) scores from a 
+                                      #normal (norm) given mean and sd 
+    
+    sampmean[i]<-mean(samp)		        #take the mean of those scores
+    
+    sampsd[i]<-sd(samp)}			        #take the sd of those scores
+  
+  sampdf<-data.frame(sampmean,sampsd)	#make a data frame of the means 
+                                      #and the standard deviations
+  
+  return(sampdf)}                     #the output of the function is 
+                                      #the data frame
+load("Sampling_Data_for_CLT_Demo.RData")
+## To create pdf version:
+
+#setwd("~/Documents/PSY 208/PSY_207-208_23-24/Lectures")
+# renderthis::to_pdf("One_sample_t_tests.Rmd", complex_slides = TRUE)
+
+## To create PowerPoint version:
+
+# renderthis::to_pptx("One_sample_t_tests.Rmd", complex_slides = TRUE)
+
+```
+
+
+
+### Sampling
+
+We rarely have access to all the data in a **population**
+
+Instead, we usually take **samples**
+
+In order to use those **samples** to make **inferences** to the **population**, we need to know something about the **sampling distribution**
+
+> *e.g.*, What values of a **sampling distribution** would lead us to reject the null hypothesis?
+
+---
+
+### Sampling
+
+W. S. Gossett (1876 – 1937) faced this same problem
+
+> Worked for Guinness 
+
+> Was interested in things like the yield of different kinds of barley
+
+> Guinness didn’t want trade secrets getting out, so Gossett agreed to publish under the pseudonym A. Student
+
+>> Hence, **Student's $t$-test**\*
+
+>> 
+
+.footnote[
+
+\*the $t$ stands for “test,” as far as I can tell.
+
+]
+
+---
+
+### Randomization
+
+**19th century science**: 
+
+> the search for the perfect measurement, a result of the influence of physics
+
+**20th century behavioral science**: 
+
+> random assignment, *on average*,  cancels out differences between groups
+
+**Essential** for psychological science!
+
+---
+
+### The Central Limit Theorem
+
+### $$\bar{x} \sim N\left(\mu, \frac{\sigma^2}{n} \right)$$
+
+The **means** of **samples** taken from a **parent distribution** are **normally distributed**.
+
+> That's **regardless** of the shape of the parent, *but*...
+
+>> Smaller samples are likely to be rougher - that's one reason why we still hang on to the **normality** assumption.
+
+---
+
+### The Central Limit Theorem
+
+.pull-left[
+The **sample means** are distributed as a **normal** (** $N$**) with a mean of ** $\mu$** (the **mean of the parent distribution**) and a variance of ** $\frac{\sigma^2}{n}$** (the **variance of the parent distribution** divided by the observed ** $n$**.
+
+]
+
+.pull-right[
+
+
+### $$\bar{x} \sim N\left(\mu, \frac{\sigma^2}{n} \right)$$
+
+]
+
+***
+
+The **standard deviation** of this distribution is $\sqrt{\frac{\sigma^2}{n}}=\frac{\sigma}{\sqrt{n}}$, which is called the **standard error** (or **sampling error**).
+---
+
+
+### Rules of Linear Functions
+
+When the parent distribution is a **normal**, **linear transformations** of that distribution are **also normal**
+
+```{r echo=FALSE,eval=FALSE}
+rules<-c("\\(x_1 \\sim N\\left(\\mu_1, \\sigma^2_1 \\right)\\)",
+         "\\(x_2 \\sim N\\left(\\mu_2, \\sigma^2_2 \\right)\\)",
+         "\\(L = x_1 - x_2\\)",
+         "\\(L\\sim N \\left(\\mu_1 - \\mu_2, \\sigma^2_1+\\sigma^2_2 \\right)\\)"
+         )
+
+descriptions<-c("\\(x_1\\) is a normally-distributed variable, with mean \\(\\mu_1\\) and variance \\(\\sigma^2_1.\\)",
+                "\\(x_2\\) is another normally-distributed variable, with mean \\(\\mu_2\\) and variance \\(\\sigma^2_2.\\)",
+                "Distribution \\(L\\) represents the difference of \\(x_1\\) and \\(x_2.\\)",
+                "\\(L\\) is *also* a normal distribution; its mean is the difference of the two means, and its variance is the sum of the two variances")
+
+data.frame(rules, descriptions) %>% 
+  kable("html",
+        col.names=NULL,
+        escape=FALSE) %>% 
+  kable_styling(font_size = 22)
+```
+.slightly-smaller[
+|        |         |
+|:-------:|:--------|
+|\\(x_1 \\sim N\\left(\\mu_1, \\sigma^2_1 \\right)\\)|\\(x_1\\) is a normally-distributed variable, with mean \\(\\mu_1\\) and variance \\(\\sigma^2_1.\\)|
+|\\(x_2 \\sim N\\left(\\mu_2, \\sigma^2_2 \\right)\\)|\\(x_2\\) is another normally-distributed variable, with mean \\(\\mu_2\\) and variance \\(\\sigma^2_2.\\)|
+|\\(L = x_1 - x_2\\)|Distribution \\(L\\) represents the difference of \\(x_1\\) and \\(x_2.\\)|
+|\\(L\\sim N \\left(\\mu_1 - \\mu_2, \\sigma^2_1+\\sigma^2_2 \\right)\\)|\\(L\\) is *also* a normal distribution; its mean is the **difference** of the two means, and its variance is the **sum** of the two variances|
+|   |   |
+]
+
+---
+
+### The $t$-distribution
+
+> The **Central Limit Theorem** tells us about the expectations of **sample means**.
+
+> The **Rules of Linear Functions** tells us what happens when we look at **differences** between normally-distributed variables.
+
+Those two concepts facilitate the use of **the $t$-distribution** to make statistical inferences about:
+
+> **sample means**, 
+
+> **mean differences**, and 
+
+> **differences of means**.
+
+---
+
+### The $t$-distribution
+
+.pull-left[
+The $t$-distribution has one **sufficient statistic**: the **degrees of freedom** $df = n-1$
+
+The **kurtosis** is large for small $df$ and small for large $df$
+
+When $df$ is real big $(\approx 120+)$, the $t$ is approximated by a **standard normal**
+]
+.pull-right[
+```{r echo=FALSE, fig.height = 8}
+x<-rep(seq(-6, 6, 12/10000), 5)
+df<-rep(c(1, 2, 4, 20, 120), each = 10001)
+y<-dt(x, df=df)
+
+data.frame(x, df, y) %>% 
+  ggplot(aes(x=x, y=y, color=as.factor(df)))+
+  geom_line(linewidth=1.5)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file="soundmachine.css")+
+  scale_color_viridis_d(name="df")+
+  labs(x = "t", y = "probability density")+
+  theme(legend.position = "bottom")
+```
+
+]
+
+.footnote[
+Note: $df$ is sometimes denoted by $\nu$ 
+]
+
+---
+
+### The $t$-statistic
+
+The ** $t$-statistic ** is the basis for the ** $t$-test**.
+
+The general formula is:
+
+### $$t=\frac{\Delta}{SE}=\frac{difference}{standard~error}$$
+
+Just as a $z$-score represents the number of standard deviations from the mean of a normal, the $t$-statistic represents **the number of standard errors from the mean of a sampling distribution**.
+
+---
+
+### the $t$-distribution is a **model**
+
+.pull-left[
+
+```{r echo=FALSE, fig.height = 4}
+millionsamps%>% 
+  ggplot(aes(sampmean))+
+  geom_histogram(binwidth = 0.1, color="#c901a1")+
+  theme_tufte(base_size=12, ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  labs(x="sample means", y="frequency", title="n = 30 per sample")+
+  theme(axis.title = element_text(size=22),
+        title = element_text(size=28))
+```
+
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 4}
+x<-seq(-4, 4, 8/10000)
+y<-dt(x, 29)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 3,
+            color="#FDEE72")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  labs(x = "t", y = "Probability Density", title = "t with df = 29")+
+  theme(axis.title = element_text(size=18))
+  
+```
+
+]
+
+***
+
+.pull-left[
+
+If we take our **sampling distribution**, subtract its **mean** -- which, don't forget, is the **parent mean** -- and divide by the **sampling error**, we get the ** $t$ distribution with $df=29$**:
+]
+
+.pull-right[
+
+```{r echo=FALSE, fig.height = 4}
+  ggplot()+
+  geom_histogram(data=millionsamps,
+                 aes((sampmean-mean(sampmean))/sd(sampmean),
+                     y=stat(width*density)),
+                 binwidth = .1, color="#c901a1")+
+  theme_tufte(base_size=12, ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  labs(x="t", y="frequency", title="sample means / se")+
+  theme(axis.title = element_blank(),
+        title = element_text(size=28))+
+  xlim(-4, 4)
+```
+
+]
+
+---
+
+### $t$-tests
+
+** $t$-tests** are one of the most common and important tests in behavioral statistics
+
+**t**-tests are used to make inferences using **sample mean differences**
+
+> Difference from a point: **One-sample $t$-test**
+
+> Difference between different conditions for the same sample (or extremely similar samples): **within-groups (or repeated-measures) $t$-test**
+
+> Difference between two samples: **between-groups (or independent measures) $t$-test**
+
+---
+
+### One-sample $t$-test
+
+**One group** of observed data.
+
+Testing difference from a **point** (often, but not always, 0)
+
+** $$t=\frac{\bar{x}-\Delta}{se}$$**
+
+where $\bar{x}$ is the **sample mean**, $\Delta$ is the **point** being tested against, and $se$ is the **standard error** $\frac{sd}{n}$
+
+---
+
+### One-sample $t$-test assumptions
+
+1. Scale data (they gotta be numbers)
+
+2. **Normality**
+
+.textbox[
+
+### The Normality Assumption: Why?
+
+Common question: if the CLT tells us that sample means are normally distributed *regardless* of the shape of the parent distribution, why bother with the assumption?
+
+Two reasons:
+
+1. **Guaranteed normality**: smaller samples don't converge on the CLT normal as well as larger samples. If you sample from a normal, then samples as small as 1 are already normally distributed.
+
+2. **Independence of mean and variance**: the $t$ transformation assumes that the mean of a distribution is not a function of its variance and *vice versa*. 
+
+]
+---
+
+### One-sample $t$-test
+
+> Example: 
+
+| Observed Data |
+|:--------------:|
+|8, 5, 16, 2, 19|
+
+> Is the **mean of the distribution** from which these data were sampled greater than **zero**?
+
+---
+
+### One-sample $t$-test
+
+.pull-left[
+
+Sample mean: 
+
+$$\bar{x}=10$$
+
+Sample sd: 
+
+$$sd = 7.25$$
+
+Standard error: 
+$$se=\frac{7.25}{\sqrt{5}}=`r round(7.25/sqrt(5), 2)`$$
+**Degrees of Freedom** 
+$$df = n-1 = 5-1=4$$
+
+
+
+]
+.pull-right[
+**One-tailed test:**
+
+$$H_0: \mu \le 0$$
+$$H_1: \mu > 0$$
+
+** $\Delta=0$ **
+
+(our $H_0$ relates the mean to $0$).
+
+
+**Test statistic** (the model that describes our data): 
+
+...let's hold off on that for a couple of slides.
+]
+
+---
+
+### The True Meaning of This Analysis
+
+We have observed a **sample** of data with $n=5$, $\bar{x}= 10$, and $sd=7.25$.
+
+Our scientific question is: **do these data come from a distribution where $\mu \ge 0$?**
+
+The main goal is to put our sample into context: 
+
+> **How weird are our data?**
+
+---
+
+### The True Meaning of This Analysis
+
+.pull-left[
+.slightly-smaller[
+
+The **null model** is the **parent** (or **population**) **distribution** that $H_0$ implies that our sample came from.
+
+In our example, we will assume that:
+
+> $\mu_0 = 0$ (the largest possible value that would satisfy the null assumption $\mu \le 0$ ),
+
+> $\sigma = s$ (the parent $sd$ is the same as sample $sd$ )
+
+]
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 8}
+x<-seq(-21, 21, 42/10000)
+y<-dnorm(x, mean = 0, sd = 7.25)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  annotate("text",
+           x=-1,
+           y=0,
+           hjust=1,
+           vjust=0,
+           label = bquote(mu==0),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=0,
+                   y=0,
+                   yend=dnorm(0, 0, 7.25)),
+                   lty=2,
+               linewidth = 1.5)+
+  annotate("text",
+           x=8.25,
+           y=dnorm(7.25, 0, 7.25),
+           hjust=0,
+           label=bquote(sigma==7.25),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=7.25,
+                   y=dnorm(7.25, 0, 7.25),
+                   yend=dnorm(7.25, 0, 7.25)),
+               lty=2,
+               linewidth = 1.5)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  labs(x="x", y="Probability Density", title = "(Assumed) Population")
+```
+
+]
+---
+### Sampling from Null Model
+
+The **null model** implies a **sampling distribution** for values taken $5$ at a time (note how funky $\bar{x}_{obs}=10$ is):
+
+.pull-left[
+```{r echo=FALSE, fig.height = 7}
+x<-seq(-21, 21, 42/10000)
+y<-dnorm(x, mean = 0, sd = 7.25)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  annotate("text",
+           x=-1,
+           y=0,
+           hjust=1,
+           vjust=0,
+           label = bquote(mu==0),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=0,
+                   y=0,
+                   yend=dnorm(0, 0, 7.25)),
+                   lty=2,
+               linewidth = 1.5)+
+  annotate("text",
+           x=8.25,
+           y=dnorm(7.25, 0, 7.25),
+           hjust=0,
+           label=bquote(sigma==7.25),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=7.25,
+                   y=dnorm(7.25, 0, 7.25),
+                   yend=dnorm(7.25, 0, 7.25)),
+               lty=2,
+               linewidth = 1.5)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  labs(x="x", y="Probability Density", title = "Parent")
+```
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 7}
+x<-seq(-21, 21, 42/10000)
+y<-dnorm(x, mean = 0, sd = 7.25/sqrt(5))
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  annotate("text",
+           x=-10,
+           y=0.025,
+           hjust=1,
+           vjust=0,
+           label = bquote(mu==0),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=0,
+                   y=0,
+                   yend=dnorm(0, 0, 7.25/sqrt(5))),
+                   lty=2,
+               linewidth = 1.5)+
+  annotate("text",
+           x=4.24,
+           y=dnorm(3.24, 0, 3.24),
+           hjust=0,
+           label=bquote(sigma==frac(7.25,sqrt(5))),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=3.24,
+                   y=dnorm(3.24, 0, 3.24),
+                   yend=dnorm(3.24, 0, 3.24)),
+               lty=2,
+               linewidth = 1.5)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+  
+  annotate("text",
+           x = 10, 
+           y = 0.01, 
+           hjust=0,
+           label = bquote(bar(x)[obs]),
+           size=36/.pt,
+           color="#710b79")+
+  labs(x="x", y="Probability Density", title = "Sampling")
+```
+]
+---
+
+### The $t$-distribution as model
+
+.pull-left[
+
+.slightly-smaller[
+
+The $sd$ of the sampling distribution - *a.k.a.* the **standard error** - is $\frac{7.25}{\sqrt{5}}=3.24$.
+
+
+$\bar{x}_{obs}$ is $\frac{10-0}{3.24}=3.08~se$ from the mean. 
+
+]
+
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 4}
+x<-seq(-21, 21, 42/10000)
+y<-dnorm(x, mean = 0, sd = 7.25/sqrt(5))
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  annotate("text",
+           x=-10,
+           y=0.025,
+           hjust=1,
+           vjust=0,
+           label = bquote(mu==0),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=0,
+                   y=0,
+                   yend=dnorm(0, 0, 7.25/sqrt(5))),
+                   lty=2,
+               linewidth = 1.5)+
+  annotate("text",
+           x=4.24,
+           y=dnorm(3.24, 0, 3.24),
+           hjust=0,
+           label=bquote(sigma==frac(7.25,sqrt(5))),
+           size=36/.pt,
+           family="serif")+
+  geom_segment(aes(x=0,
+                   xend=3.24,
+                   y=dnorm(3.24, 0, 3.24),
+                   yend=dnorm(3.24, 0, 3.24)),
+               lty=2,
+               linewidth = 1.5)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+  
+  annotate("text",
+           x = 10, 
+           y = 0.015, 
+           hjust=0,
+           label = bquote(bar(x)[obs]),
+           size=36/.pt,
+           color="#710b79")+
+  theme(title = element_blank(),
+        axis.title = element_blank(),
+        axis.text.y = element_text(size=36/.pt))
+```
+]
+
+***
+
+.pull-left[
+
+.slightly-smaller[
+
+The $t$-distribution is the **statistical model** to describe the **distance** between a sample and its mean in terms of **standard errors**.
+
+
+
+]
+
+]
+.pull-right[
+
+
+
+```{r echo=FALSE, fig.height = 4}
+x<-seq(-4, 4, 8/1000)
+y<-dt(x, df=4)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  labs(x="t", y="Density")+
+  annotate("text",
+           x=0,
+           y=0,
+           vjust=0,
+           label=bquote(frac(bar(x)-mu, se)),
+           size=36/.pt,
+           color="#710b79")+
+  annotate("text",
+           x=-Inf,
+           y=0.3,
+           hjust=0,
+           vjust=1,
+           label = "df = 4",
+           size=36/.pt)
+```
+
+]
+---
+### One-sample $t$-test (again)
+
+.pull-left[
+
+.slightly-smaller[
+Sample mean: 
+
+$$\bar{x}=10$$
+
+Sample sd: 
+
+$$sd = 7.25$$
+
+Standard error: 
+$$se=\frac{7.25}{\sqrt{5}}=`r round(7.25/sqrt(5), 2)`$$
+
+**Degrees of Freedom** 
+
+$$df = n-1 = 5-1=4$$
+
+
+]
+]
+.pull-right[
+
+.slightly-smaller[
+
+**One-tailed test:**
+
+$$H_0: \mu \le 1$$
+$$H_1: \mu > 1$$
+
+** $\Delta=0$ **
+
+(our $H_0$ relates the mean to $1$).
+
+]
+
+**Test statistic** (the model that describes our data): 
+
+.center[
+
+## $t(df = 4)$
+
+]
+
+]
+
+---
+### One-sample $t$-test: the math
+
+$$t = \frac{\bar{x}-\Delta}{se}$$
+
+$$t = \frac{10-0}{3.24}$$
+
+$$t = 3.09$$
+
+.center[
+and that's basically it for math we have to do.
+]
+---
+
+### One-sample $t$-test: the decision
+
+.pull-left[
+
+.slightly-smaller[
+Where does $t_{obs}=3.09$ live in a $t$-distribution with $df=4?$
+]
+
+```{r echo = FALSE, fig.width = 5, fig.height = 5}
+x<-seq(-5, 5, 10/10000)
+y<-dt(x, 4)
+example1tdist<-data.frame(x, y)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 2)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  labs(x="t", y="density")+
+  annotate("text",
+           x = 3.09, y = 0.2, label = "Right\nover\nhere!",
+           size=28/.pt,
+           color="#710b79")+
+  geom_segment(x=3.09,
+               y=0.08,
+               xend=3.09,
+               yend=dt(3.09, df = 4),
+               arrow=arrow(),
+               size=2,
+           color="#710b79")
+```
+
+]
+
+.pull-right[
+
+.slightly-smaller[
+What's the likelihood of finding a $t$ **as or more extreme than** $t_{obs}$?
+]
+
+```{r echo = FALSE, fig.height = 5, fig.width = 5}
+example1tdist %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 2)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+    labs(x="t", y="density")+
+  annotate("text",
+           x = 0, 
+           y = 0.01, 
+           label = round(pt(3.09, 4, lower.tail=FALSE),3),
+           vjust=0,
+           hjust = 0.5,
+           size=28/.pt,
+           color="#710b79")+
+  geom_segment(aes(x=0.5,
+                   y=0,
+                   xend=3,
+                   yend=0),
+                   arrow=arrow(),
+                   color = "#710b79")+
+  geom_area(data=subset(example1tdist,
+                        example1tdist$x>=3.09),
+           fill="#710b79")
+```
+
+]
+---
+
+### $t$-tests: $p$-values
+
+.pull-left[
+The $p$-value is the area under the $t$ curve beyond:
+
+> $t_{obs}$ in one tail for one-tailed hypothesis
+
+> $t_{obs}$ *and* $-t_{obs}$ tails for two-tailed hypothesis
+
+If $p\le \alpha$, reject $H_0$.
+
+
+]
+
+.pull-right[
+```{r}
+t.test(c(8,5,16,2,19), 
+       mu = 0, 
+       alternative = "greater")
+```
+
+]
+---
+
+## $t$-tests: the decision
+
+For the data in our first example:
+
+$$t(4)=3.09, p = 0.02$$
+Assuming $\alpha = 0.05$, we **reject $H_0$ in favor of $H_1$**:
+
+> The data are sampled from a distribution with $\mu > 0$
+
+.center[or]
+
+> The observation is significantly greater than 0.
+
+
+
+.footnote[
+NOTE: in APA style, we put the $df$ in parenthesis after $t$.
+]
+
+---
+### One-sample $t$-tests: another example
+
+```{r echo=FALSE}
+ex2data<-c(84,  66,  52,  58,  59,  70,  70,  66, 120,  91)
+```
+
+Another example: suppose the national average score on a given test is 90.
+
+The test was administered to 10 participants:
+
+|Observed scores|
+|:---------:|
+|84,  66,  52,  58,  59,  70,  70,  66, 120,  91|
+
+
+Is this group significantly **different** than (the national) average?
+
+
+---
+
+### One-sample $t$-test: example 2
+
+.pull-left[
+
+.slightly-smaller[
+Sample mean: 
+
+$$\bar{x}=73.6$$
+
+Sample sd: 
+
+$$sd = 20.08$$
+
+Standard error: 
+$$se=\frac{20.08}{\sqrt{10}}=`r round(20.08/sqrt(10), 2)`$$
+
+Degrees of Freedom:
+
+$$df = n-1 = 10-1=9$$
+
+
+]
+]
+
+.pull-right[
+
+.slightly-smaller[
+
+**Two-tailed test:**
+
+$$H_0: \mu = 90$$
+$$H_1: \mu \ne 90$$
+
+** $\Delta=90$ **
+
+(our $H_0$ relates the mean to $90$).
+
+
+
+**Test statistic** (the model that describes our data): 
+
+a $t$ distribution with $df = 9$
+
+]
+
+]
+
+---
+### Example 2: all the math
+
+$$t_{obs}=\frac{\bar{x}-\Delta}{se}$$
+
+$$t_{obs}=\frac{73.6-90}{6.35}$$
+
+$$t_{obs}=-2.58$$
+***
+
+For a **two-tailed test**, there are **two tails** that add up to the $p$-value:
+
+```{r}
+pt(-2.58, df=9)+ # observed t and smaller
+  pt(2.58, df=9, lower.tail = FALSE) # opposite t and bigger
+```
+
+---
+
+### $t$-tests in `R` (as Mother Nature intended)
+
+```{r}
+ex2data<-c(84,  66,  52,  58,  59,  70,  70,  66, 120,  91)
+
+t.test(ex2data,
+       mu = 90,
+       alternative = "two.sided") #the default, so its optional
+```
+
+
+---
+
+### $t$-tests: critical values of $t$
+
+.slightly-smaller[
+Alternatively, if we know the $df$, we can find $t$ for given $\alpha$-levels, such that any **equal or more extreme** $t$ will have $p \le \alpha$. These values are called **critical values** of $t$ (or, $t_{crit}$ ).
+
+They are sometimes convenient.
+]
+
+```{r echo=FALSE, fig.height = 5, fig.width = 12}
+x<-seq(-5, 5, 10/10000)
+y<-dt(x, 4)
+
+tex1df<- data.frame(x, y)
+
+  ggplot(tex1df, aes(x, y))+
+  geom_line(linewidth = 2)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+        geom_area(data=subset(tex1df, tex1df$x<=qt(0.025, 4)),
+              fill="#5ac2ad")+
+        geom_area(data=subset(tex1df, tex1df$x>qt(0.95, 4)),
+              fill="#5ac2ad")+
+  geom_segment(x=qt(0.95, 4),
+               y=0.25,
+               xend=qt(0.95, 4),
+               yend=0,
+               size=1,
+           color="#710b79",
+           lty=2)+
+      geom_segment(x=qt(0.975, 4),
+               y=0.18,
+               xend=qt(0.975, 4),
+               yend=0,
+               size=1,
+           color="#710b79",
+           lty=2)+
+  geom_segment(x=qt(0.05, 4),
+               y=0.25,
+               xend=qt(0.05, 4),
+               yend=0,
+               size=1,
+           color="#710b79",
+           lty=2)+
+      geom_segment(x=qt(0.025, 4),
+               y=0.18,
+               xend=qt(0.025, 4),
+               yend=0,
+               size=1,
+           color="#710b79",
+           lty=2)+
+  annotate("text",
+           x = c(qt(0.05, 4),
+                 qt(0.95, 4)), 
+           y = 0.27, 
+           label = c("one-tailed\n(negative)",
+                     "one-tailed\n(positive)"),
+           vjust=0,
+           size=28/.pt,
+           color="#710b79")+
+  annotate("text",
+           x = c(qt(0.025, 4),
+                 qt(0.975, 4)), 
+           y = 0.15, 
+           label = "two-tailed",
+           vjust=0,
+           hjust=c(1.1, -0.1),
+           size=28/.pt,
+           color="#710b79")+
+    annotate("text",
+             x=-4,
+             y=dt(qt(0.025, 4), 4),
+             vjust=0,
+             label=bquote(frac(alpha, 2)),
+             color = "#3021D6",
+             size = 36/.pt,
+             family="serif")+
+    annotate("text",
+             x=2,
+             y=0,
+             vjust=0,
+             hjust=1,
+             label=expression(alpha),
+             color = "#3021D6",
+             size = 36/.pt,
+             family="serif")
+```
+
+
+---
+
+### Confidence Intervals on Means
+
+The $t$-distribution is all about long-term expectations on **sample means**.
+
+A **confidence interval on a mean** is based on the **sampling distribution** to which the data that produced that (sample) mean belong.
+
+So, the $t$-distribution is prominently involved\*. We will use $t$ to recover **the range of $1-\alpha\%$ of the sample means with $\bar{x}_{obs}$ in the middle**.
+
+***
+
+.footnote[
+\*Confidence intervals on other statistics use distributions related to those stats, *e.g.*, the **binomial distribution** for CIs on **proportions**; the ** $\chi^2$ distribution** for CIs on **variances**
+]
+---
+
+### Confidence Intervals on Means
+
+$$(1-\alpha)\%~CI=\bar{x}_{obs}\pm t_{\frac{\alpha}{2}}(se)$$
+
+$\alpha$ is the type-I error rate 
+
+> for example, if $\alpha = 0.05$, we have a 95% confidence interval.
+
+$t_{\frac{\alpha}{2}}$ is the $t$ value that defines an upper-tail probability of $\alpha/2$ given the $df$ for the mean.
+
+> for example, if $df=30$ and $\alpha = 0.01$ (for a 99% CI):
+
+```{r}
+qt(0.01/2, df = 30, lower.tail=FALSE)
+```
+
+---
+
+### Confidence Intervals on Means in `R`
+
+.pull-left[
+
+The output of the `t.test()` function provides **95% confidence intervals** on the mean for one-sample $t$-tests\*.
+
+The width of the confidence interval can be specified with the `conf.level` argument
+]
+
+.pull-right[
+
+
+
+```{r}
+t.test(ex2data, conf.level = 0.99)
+```
+
+
+]
+
+
+
+.footnote[
+\*when `alternative` is set to either `less` or `greater`, `t.test()` returns a **one-sided confidence interval**, which is rarely useful. 
+]
+
+---
+
+### Inference using confidence intervals
+
+Confidence intervals on means are closely related to **two-tailed $t$-tests**. That relationship can be leveraged to generate **inferences**.
+
+> If a confidence interval does not include a certain value, a two-tailed $t$-test using that value would be significant.
+
+In our second example, the sample mean was **significantly greater than 90**. 
+
+> The 95% confidence interval was [59.24, 87.96].
+
+Since the upper limit $87.96 < 90$, the whole interval is less than the key value, and the result is significant at the $\alpha = 0.05$ level (which agrees with the $t$-test result $p = 0.03$)
+

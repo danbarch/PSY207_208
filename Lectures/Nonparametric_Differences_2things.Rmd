@@ -1,0 +1,1560 @@
+---
+title: "Differences Between Two Things III"
+subtitle: "Nonparametric Tests"
+author: ""
+date: "`r Sys.Date()`"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [soundmachine.css]
+    nature: 
+      # highlightStyle: none
+      hilightLines: true
+      highlightSpans: true
+
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(tidyverse) # load tidyverse package
+library(MASS)
+library(ggplot2)
+library(ggthemes)
+library(kableExtra)
+library(flextable)
+library(officer)
+library(cowplot)
+library(xaringanthemer)
+#library(gg3D)
+library(leaflet)
+library(maps)
+library(fontawesome)
+library(ggrepel)
+library(DescTools)
+library(renderthis)
+library(ggtext)
+library(ggimage)
+library(ftExtra)
+#library(gganimate)
+
+## Function to sample from a Chi Squared Distribution
+samplingchi<-function(n,size,df){
+sampmean<-rep(NA,n)	                #create an empty vector where 
+                                    #we will store the mean values
+
+sampsd<-rep(NA,n)                   #create an empty vector where 
+                                    #we will store our sd values
+
+for (i in 1:n){		                  #indicate that we are repeating 
+                                    #the operation n times
+  
+samp<-rchisq(size,df)	              #sample 'size' number of random (r) 
+                                    #scores from a chi squared (chisq) 
+                                    #distribution with df = df 
+
+sampmean[i]<-mean(samp)			        #take the mean of those scores
+
+sampsd[i]<-sd(samp)}			          #take the sd of those scores
+
+sampdf<-data.frame(sampmean,sampsd)	#make a data frame out of the means 
+                                    #and the standard deviations
+
+return(sampdf)}	                    #the output of the function 
+                                    #is the data frame
+
+## Function to Sample from a Normal Distribution
+
+samplingnorm<-function(n,size, mean, sd){
+  sampmean<-rep(NA,n)	                #create an empty vector where 
+                                      #we will store the mean values 
+  
+  sampsd<-rep(NA,n) 	                #create an empty vector where 
+                                      #we will store the sd values 
+  
+  for (i in 1:n){ 		                #indicate that we are repeating 
+                                      #the operation n times
+    
+    samp<-rnorm(size,mean,sd)	        #sample 'size' number of 
+                                      #random (r) scores from a 
+                                      #normal (norm) given mean and sd 
+    
+    sampmean[i]<-mean(samp)		        #take the mean of those scores
+    
+    sampsd[i]<-sd(samp)}			        #take the sd of those scores
+  
+  sampdf<-data.frame(sampmean,sampsd)	#make a data frame of the means 
+                                      #and the standard deviations
+  
+  return(sampdf)}                     #the output of the function is 
+                                      #the data frame
+load("Sampling_Data_for_CLT_Demo.RData")
+## To create pdf version:
+# setwd("~/Documents/PSY 208/PSY_207-208_23-24/Lectures")
+# renderthis::to_pdf("Nonparametric_Differences_2things.Rmd", complex_slides = TRUE)
+
+## To create PowerPoint version:
+
+# renderthis::to_pptx("One_sample_t_tests.Rmd", complex_slides = TRUE)
+
+```
+
+
+
+### Nonparametric Tests
+
+Inference is based on the conditional probability of the **pattern** of observed results (or more extreme patterns).
+
+**No inference on population parameters** (no means, no variances, *etc.*)
+
+Examples of nonparametric tests we have encountered already: 
+
+> the $\rho$, $\tau$, and $G$ correlations
+
+---
+
+### Independent-groups\* nonparametric tests
+
+> $\chi^2$ test of statistical independence
+
+> exact test
+
+> median test
+
+> Wilcoxon Mann-Whitney
+
+> Permutation (Randomization) test
+
+.footnote[
+\*we're going in the opposite order of the $t$-tests (independent $\to$ repeated-measures) *only* because I wanna start with the $\chi^2$. 
+]
+
+---
+
+### $\chi^2$ test of statistical independence
+
+.pull-left[
+imagine an experiment with 100 mice
+
+```{r echo=FALSE, fig.align = 'center'}
+data.frame(x=rep(1:10, 10),
+           y=rep(1:10, each = 10),
+           image = "images/mouse.png") %>% 
+  ggplot(aes(x, y))+
+  geom_image(aes(image=image),
+             size = 0.1)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  theme(axis.text = element_blank(),
+        axis.title = element_blank())
+```
+
+]
+
+.pull-right[
+and a maze with two possible paths
+
+```{r echo=FALSE, fig.align='center'}
+data.frame(x=0:100,
+           y=0:100) %>% 
+  ggplot(aes(x, y))+
+  geom_segment(x=0,
+               xend=100,
+               y=100,
+               yend=100,
+               linewidth = 2)+
+  geom_segment(x=0,
+               xend=35,
+               y=70,
+               yend=70,
+               linewidth = 2)+
+  geom_segment(x=35,
+               xend=35,
+               y=70,
+               yend=0,
+               linewidth = 2)+
+  geom_segment(x=65,
+               xend=100,
+               y=70,
+               yend=70,
+               linewidth = 2)+
+  geom_segment(x=65,
+               xend=65,
+               y=70,
+               yend=0,
+               linewidth = 2)+
+    geom_image(data=data.frame(x=50, 
+                               y=1, 
+                               image = "images/mouse.png"),
+                               aes(x,
+                                   y,
+                                   image=image),
+               size=0.25)+
+  coord_fixed(xlim=c(0, 100),
+              ylim=c(0, 100))+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank())
+```
+
+]
+---
+### $\chi^2$ test of statistical independence
+
+.pull-left[
+
+Each path is equally likely to be taken by each mouse.
+
+***
+
+The number of turns in each direction **depends** on the number of possible paths, therefore the *turn* data are **statistically dependent** on the number of possible outcomes.
+
+***
+In this example, we would expect *about* 50 mice to turn left and 50 to turn right.
+]
+
+.pull-right[
+
+
+```{r echo=FALSE, fig.align='center'}
+data.frame(x=0:100,
+           y=0:100) %>% 
+  ggplot(aes(x, y))+
+  geom_segment(x=0,
+               xend=100,
+               y=100,
+               yend=100,
+               linewidth = 2)+
+  geom_segment(x=0,
+               xend=35,
+               y=70,
+               yend=70,
+               linewidth = 2)+
+  geom_segment(x=35,
+               xend=35,
+               y=70,
+               yend=0,
+               linewidth = 2)+
+  geom_segment(x=65,
+               xend=100,
+               y=70,
+               yend=70,
+               linewidth = 2)+
+  geom_segment(x=65,
+               xend=65,
+               y=70,
+               yend=0,
+               linewidth = 2)+
+    geom_image(data=data.frame(x=50, 
+                               y=1, 
+                               image = "images/mouse.png"),
+                               aes(x,
+                                   y,
+                                   image=image),
+               size=0.25)+
+  coord_fixed(xlim=c(0, 100),
+              ylim=c(0, 100))+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank())
+```
+
+
+]
+---
+### $\chi^2$ test of statistical independence
+
+.pull-left[
+
+Now, let's put a **reward** around one of the turns.
+
+***
+
+The mice have a reason to turn right: there is more than chance at play.
+
+***
+If mice turn right more often than predicted by chance, their choices are **statistically independent** of their options.
+]
+
+.pull-right[
+
+
+```{r echo=FALSE, fig.align='center'}
+data.frame(x=0:100,
+           y=0:100) %>% 
+  ggplot(aes(x, y))+
+  geom_segment(x=0,
+               xend=100,
+               y=100,
+               yend=100,
+               linewidth = 2)+
+  geom_segment(x=0,
+               xend=35,
+               y=70,
+               yend=70,
+               linewidth = 2)+
+  geom_segment(x=35,
+               xend=35,
+               y=70,
+               yend=0,
+               linewidth = 2)+
+  geom_segment(x=65,
+               xend=100,
+               y=70,
+               yend=70,
+               linewidth = 2)+
+  geom_segment(x=65,
+               xend=65,
+               y=70,
+               yend=0,
+               linewidth = 2)+
+    geom_image(data=data.frame(x=c(50, 90), 
+                               y=c(1,85), 
+                               image = c("images/mouse.png",
+                                         "images/cheese.png")),
+                               aes(x,
+                                   y,
+                                   image=image),
+               size=0.25)+
+  coord_fixed(xlim=c(0, 100),
+              ylim=c(0, 100))+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank())
+```
+
+
+]
+---
+
+### $\chi^2$ test of statistical independence
+
+**The $\chi^2$ Test of Statistical Independence** uses the difference between the **expected frequency** ** $(f_e)$ ** of events and the **observed frequency** ** $(f_o)$ ** of events to determine whether the observations are **statistically independent**.
+
+> From our example: we *expect* 50 left turns and 50 right turns. When we collect observations, we can test against this expectation.
+
+>> How much different from 50/50 are we?
+
+.center[
+$H_0$: statistical dependence
+
+$H_1$: statistical independence
+]
+
+---
+### $\chi^2$ test of statistical independence
+
+.pull-left[
+The **observed frequency** of each event is collected in a **cell**.
+
+The **expected frequency** of each event is the prediction given that all things are equal.
+
+In this case, we expect frequencies of $\frac{100}{2}=50$ for each cell.
+]
+
+.pull-right[
+```{r echo=FALSE}
+left1<-c(50, NA)
+left2<-c(NA, 37)
+
+
+right1<-c(50,NA)
+right2<-c(NA,63)
+
+options(knitr.kable.NA = "")
+data.frame(left1, left2,
+           right1, right2) %>% 
+  kable("html",
+        col.names=NULL,
+        align=c("l", "c", "l", "c")) %>% 
+kable_styling(full_width = TRUE) %>% 
+  add_header_above(c("left turns"= 2,
+                     "right turns" = 2)) %>% 
+  row_spec(0, font_size = 36, extra_css = "border-bottom: 1px solid") %>% 
+  row_spec(2, font_size = 48) %>% 
+  column_spec(2, border_right = T)
+
+
+```
+
+It's helpful to note the $f_e$ in the corner of the cells with the $f_o$.
+]
+
+---
+### $\chi^2$ test of statistical independence
+
+The **observed $\chi^2$ statistic** is what helps us compare ** $f_o$ ** with ** $f_e$ **. 
+
+$$\chi^2_{obs}=\sum \frac{\left(f_o - f_e \right)^2}{fe}$$
+
+We contextualize $\chi^2_{obs}$ with the ** $\chi^2$ distribution with $df=k-1$ **, where $k$ is the number of **columns** of cells we have.
+
+```{r echo=FALSE, fig.height = 4, fig.width = 12}
+x<-rep(seq(0, 10, 10/1000), 5)
+df<-rep(1:5, each = 1001)
+y<-c(dchisq(x, df = df))
+
+data.frame(x, y, df) %>% 
+  ggplot(aes(x, y, color=as.factor(df)))+
+  scale_color_viridis_d("df")+
+  geom_line(linewidth = 2)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  ylim(0, 0.5)+
+  theme(legend.position = c(0.65, 0.65),
+        legend.direction = "horizontal",
+        axis.title= element_text(family="serif"))+
+  labs(x=bquote(chi^2), y="density")
+
+```
+
+---
+
+### $\chi^2$ test of statistical independence
+
+> Calculations for our example
+
+$$\chi^2_{obs}=\sum \frac{(f_0-f_e)^2}{f_e}=\frac{(37-50)^2}{50}+\frac{(63-50)^2}{50}$$
+
+$$\chi^2_{obs}=\frac{169}{50}+\frac{169}{50}=\frac{338}{50}=6.76$$
+
+$$p(\chi^2(1)\ge 6.76)=0.009$$
+
+$$\therefore reject~ H_0$$
+
+---
+### Two-way $\chi^2$ test
+
+We are often interested if there is a **statistical dependency** between **two factors**, for example:
+
+> Age and gender identification
+
+> Toxin exposure and disease incidence
+
+> Study time and waiting time
+
+When there are **two categories of data**, we use the **two-way version** of the $\chi^2$ test of statistical independence.
+
+---
+### Two-way $\chi^2$ test
+
+Example: 226 people were asked two questions:
+
+> 1. Is a hot dog a sandwich?
+
+> 2. Does a straw have 1 hole or 2 holes?
+
+We are interested to see whether there is a **relationship between** the responses to each question
+
+***
+
+$H_0$: **no relationship** between the questions
+
+$H_1$: the answer on one question **depends** on the answer to the other
+
+
+---
+### Two-way $\chi^2$ test
+
+There may be different numbers in each group, so we would **expect** different **row** and different **column** frequencies
+
+```{r echo=FALSE}
+rows<-c("rows",
+        "rows",
+        NA)
+
+columna<-c("A",
+           "C",
+           "A + C")
+columnb<-c("B",
+           "D",
+           "B + D")
+margin<-c("A + B",
+          "C + D", 
+          "n")
+
+data.frame(rows, columna, columnb, margin) %>% 
+  flextable() %>% 
+  merge_v(j = 1) %>% 
+  merge_at(j = 2:3, part = "header") %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(rows = "",
+                    columna = "columns",
+                    columnb = "columns",
+                    margin = "") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 2:3, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in")
+```
+
+Statistical dependence for the two-way: frequencies will be **proportionally the same** across rows and columns of cells.
+
+Statistical independence: frequencies will be **proportionally different**.
+
+---
+### Two-way $\chi^2$ test
+
+> Calculating $f_e$ for each cell in the two-way test (they're not the same anymore!):
+
+$$f_e=n_{total}\times row~proportion\times column~proportion$$
+
+The **row proportion** is the proportion of observations in the **row** that a cell is in 
+
+The **column proportion** is the proportion of observations in the column that the cell is in
+
+> Calculating $df$
+
+$$df=df_{row} \times df_{column}$$
+.center[
+.slightly-smaller[
+(number of columns minus one times number of rows minus one)
+]
+]
+
+---
+### Two-way $\chi^2$ test example
+
+```{r echo=FALSE}
+rows<-c("Yes",
+        "No",
+        "Total")
+
+columna<-c(46,
+           69,
+           115)
+columnb<-c(77,
+           34,
+           111)
+margin<-c(123,
+          103, 
+          226)
+
+data.frame(rows, columna, columnb, margin) %>% 
+  flextable() %>% 
+  add_header_row(values=c(" ",
+                          "How many holes does a straw have?",
+                          " "),
+                 colwidths=c(1, 2, 1)) %>% 
+  align(align = "center",
+        j = 2:4,
+        part = "all") %>% 
+  set_header_labels(rows = "Is a hot dog a sandwich?",
+                    columna = "One",
+                    columnb = "Two",
+                    margin = "Total") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 2:3, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in")
+```
+
+.slightly-smaller[
+
+.pull-left[
+The $f_e$ for cell (1, 1) is:
+
+$$226\left(\frac{123}{226}\right)\left(\frac{115}{226}\right)=62.6$$
+
+]
+
+.pull-right[
+
+The $f_e$ for cell (2, 2) is:
+$$226\left(\frac{103}{226}\right)\left(\frac{111}{226}\right)=50.6$$
+
+]
+]
+
+---
+
+### Two-way $\chi^2$ test example
+
+.slightly-smaller[
+$$\chi^2_{obs}=\frac{(46-62.6)^2}{62.6}+\frac{(77-60.4)^2}{60.4}+\frac{(69-52.4)^2}{52.4}+\frac{(34-50.6)^2}{50.6}$$
+]
+
+$$\chi^2_{obs}=19.67$$
+
+$$p(\chi^2(1)\ge19.67)=0.000009$$
+
+
+we would report that result as:
+
+$$\chi^2(1)=19.67, p < 0.001$$
+
+---
+
+### $\chi^2$ notes
+
+We can also **categorize** *continuous* data
+
+For example: 
+
+> how many values are above/below the median (see: the median test below)?
+
+> how many values are above/below a given threshold (*e.g.*, how many are positive/negative)
+
+The $\chi^2$ test is quite often applied to data with more than 2 cells per row or row/column
+
+> Just for organizational purposes, we’ll circle back to that in *Differences Between 3 or More Things*
+
+
+---
+
+### Exact test
+
+The **exact test** is used for the same data structures as the **2-way $\chi^2$ test**.
+
+> It is preferred when $f_e<5$ because $\chi^2_{obs}$ values can be inflated in those cases.
+
+It works on the principle of **hypergeometric probability** (reminder: that's like **binomial probability** but **without replacement**).
+
+> In this framework, data from the **row totals** are sampled into the **columns** without replacement.
+
+---
+
+### Exact test
+
+
+```{r echo=FALSE}
+rows<-c("blue",
+        "red",
+        "Margin")
+
+columna<-c("$\\bullet \\bullet$",
+           "$\\bullet \\bullet \\bullet$",
+           "$\\bullet \\bullet \\bullet \\bullet \\bullet$ ")
+columnb<-c("$\\bullet \\bullet \\bullet \\bullet$",
+           "$\\bullet \\bullet$",
+           "$\\bullet \\bullet \\bullet \\bullet \\bullet \\bullet$")
+margin<-c("$\\bullet \\bullet \\bullet \\bullet \\bullet \\bullet$",
+          "$\\bullet \\bullet \\bullet \\bullet \\bullet$", 
+          "$\\bullet \\bullet \\bullet \\bullet \\bullet \\bullet \\bullet \\bullet \\bullet \\bullet \\bullet$")
+
+data.frame(rows, columna, columnb, margin) %>% 
+  flextable() %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(rows = "",
+                    columna = "Drawn",
+                    columnb = "Still in Jar",
+                    margin = "Margin") %>% 
+  color(color="#0331a1", i = 1, part = "body") %>% 
+  color(color="#FF355E", i = 2, part = "body") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "header") %>%
+  fontsize(size = 20, j=1, part = "body") %>%
+  fontsize(size = 30, j=2:4, part = "body") %>%
+  border_remove() %>% 
+  border(i = 1:2, j = 2:3, border = fp_border(color = "#5ac2ad")) %>% 
+  border(i = 3, j = 4, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in") %>% 
+  colformat_md()
+  
+```
+
+The **marginal** totals are assumed to be constant (*i.e.* the total number of marbles, the relative numbers of different marbles in the jar, the total number of marbles drawn); the other values can vary.
+---
+### Exact test
+
+```{r echo=FALSE}
+rows<-c("rows",
+        "rows",
+        NA)
+
+columna<-c("A",
+           "C",
+           "A + C")
+columnb<-c("B",
+           "D",
+           "B + D")
+margin<-c("A + B",
+          "C + D", 
+          "n")
+
+data.frame(columna, columnb, margin) %>% 
+  flextable() %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(rows = "",
+                    columna = "",
+                    columnb = "",
+                    margin = "") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 1:2, border = fp_border(color = "#5ac2ad")) %>% 
+  border(i = 3, j = 3, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in")
+```
+
+The probability of each given **configuration** of the data is given by:
+
+$$p=\frac{(A+B)!(C+D)!(A+C)!(B+D)!}{n!A!B!C!D!}$$
+
+The $p$-value is the sum of the probability of the **observed configuration** and the probabilities of any more extreme configuration(s).
+
+---
+
+### Exact test example
+
+Observed data: 
+```{r echo=FALSE}
+
+columna<-c(7,
+           1,
+           8)
+columnb<-c(1,
+           6,
+           7)
+margin<-c(8,
+          7, 
+          15)
+
+data.frame(columna, columnb, margin) %>% 
+  flextable() %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(rows = "",
+                    columna = "",
+                    columnb = "",
+                    margin = "") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 1:2, border = fp_border(color = "#5ac2ad")) %>% 
+  border(i = 3, j = 3, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in")
+```
+
+The probability of the observed configuration is:
+
+$$p=\frac{8!7!8!7!}{15!7!1!1!6!}=0.0087$$
+
+Let's assume a **one-tailed test**. Is there a configuration **more extreme** (making the columns and rows more lopsided *in one direction* while keeping the same margins)?
+
+---
+
+### Exact test example
+
+There is just one more extreme configuration in the observed direction. Here it is!
+
+```{r echo=FALSE}
+
+columna<-c(8,
+           0,
+           8)
+columnb<-c(0,
+           7,
+           7)
+margin<-c(8,
+          7, 
+          15)
+
+data.frame(columna, columnb, margin) %>% 
+  flextable() %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(rows = "",
+                    columna = "",
+                    columnb = "",
+                    margin = "") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 1:2, border = fp_border(color = "#5ac2ad")) %>% 
+  border(i = 3, j = 3, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in")
+```
+
+$$p=\frac{8!7!8!7!}{15!8!0!0!7!}=0.000155$$
+
+Thus, the $p$-value is:
+
+$$p=0.0087+0.000155=0.00886$$
+
+---
+### Exact test in `R`
+
+```{r}
+exact.example<-matrix(c(7, 1, 1, 6), nrow=2)
+
+fisher.test(exact.example,
+            alternative = "greater")
+```
+
+---
+
+### Median test
+
+Application of the $\chi^2$ test (or **exact test** for small samples)
+
+Categorizes data into below median or at or above median groups, then applies $\chi^2$ or exact test
+
+---
+
+### Median test example
+
+.pull-left[
+```{r echo=FALSE}
+Group1<-c(2,
+          4,
+          12,
+          15,
+          16,
+          18,
+          20,
+          24,
+          35,
+          66,
+          69,
+          75
+)
+
+Group2<-c(44,
+          49,
+          57,
+          63,
+          63,
+          64,
+          84,
+          84,
+          85,
+          98,
+          100,
+          102
+)
+
+data.frame(Group1, Group2) %>% 
+  kable("html",
+        col.names = c("Group A", "Group B"),
+        align = "c") %>% 
+  kable_styling(font_size = 20)
+```
+]
+
+.pull-right[
+```{r echo=FALSE, fig.height = 8}
+Group<-c(rep("Group A",
+           length(Group1[!is.na(Group1)])),
+         rep("Group B",
+             length(Group2)))
+Data<-c(Group1[!is.na(Group1)],
+        Group2)
+
+median <- median(Data, na.rm=TRUE)
+
+data.frame(Group, Data) %>% 
+  ggplot(aes(Data))+
+  geom_histogram()+
+  facet_grid(rows=vars(Group))+
+  geom_segment(x=median,
+               xend=median,
+               y=0,
+               yend=Inf,
+               lty=2,
+               linewidth = 1.5,
+               color = "#5ac2ad")+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "soundmachine.css")+
+  ggtitle("Overall median = 60")
+```
+
+]
+
+---
+
+### Median test example
+
+```{r echo=FALSE}
+Group<-c("Group A", "Group B")
+Below<-c(9, 3)
+AtAbove<-c(3, 9)
+
+data.frame(Group,
+           Below,
+           AtAbove) %>% 
+  kable("html",
+        col.names=c("Group",
+                    "Below Median",
+                    "At or Above Median"),
+        align = "c") %>% 
+  kable_styling()
+```
+
+$$\chi^2_{obs}=\frac{(9-6)^2}{6}+\frac{(3-6)^2}{6}+\frac{(3-6)^2}{6}+\frac{(9-6)^2}{6}=6$$
+
+```{r}
+pchisq(6, df=1, lower.tail=FALSE)
+```
+
+---
+
+### Wilcoxon Mann-Whitney
+
+Two **independent samples** of numeric data
+
+Given a sample $X$ from one group and $Y$ from another group:
+
+$$H_0: p(X>Y)=p(Y>X)$$
+$$H_1: p(X>Y)\ne p(Y>X)$$
+
+---
+
+### Wilcoxon Mann-Whitney
+
+1. Let's call the two conditions $A$ and $B$ (in real life they will have real-life names like *control condition* or *experimental condition*).
+
+2. For each value in $A$, count how many values in $B$ are *smaller.* **Call this count $U_A$ **
+
+3. For each value in $B$, count how many values in $A$ are *smaller.* **Call this count $U_B$ **
+ 
+4. ** $U = \text{min}(U_A, U_B)$ **
+
+Note: the Wilcoxon-Mann-Whitney test ignores ties. If there are tied data, the observed $p$-value will be imprecise.
+
+---
+
+### Wilcoxon Mann-Whitney Example
+
+.pull-left[
+```{r echo=FALSE}
+Control<-c(12,
+           14,
+           22,
+           25,
+           40)
+
+Experimental<-c(38,
+                42,
+                44,
+                48,
+                50)
+
+data.frame(Control, Experimental) %>% 
+  kable("html",
+        align="c") %>% 
+  kable_styling() %>% 
+  column_spec(1, color="#fffaf1", background = "#3021D6", width = "4cm") %>% 
+  column_spec(2, color="#3021D6", background = "#fffaf1", width = "4cm")
+```
+
+
+```{r echo=FALSE}
+data.frame(c1 = 12,
+           c2 = 14,
+           c3 = 22,
+           c4 = 25,
+           e1 = 38,
+           c5 = 40,
+           e2 = 42,
+           e3 = 44,
+           e4 = 48,
+           e5 = 50
+             ) %>% 
+  kable("html",
+        align = "c",
+        col.names = c("C",
+                     "C",
+                     "C",
+                     "C",
+                     "E",
+                     "C",
+                     "E",
+                     "E",
+                     "E",
+                     "E")) %>% 
+  kable_styling(font_size = 18) %>% 
+  column_spec(c(1:4, 6), color="#fffaf1", background = "#3021D6") %>% 
+  column_spec(c(5, 7:10), color="#3021D6", background = "#fffaf1")
+  
+```
+
+$$U = 1$$
+]
+
+.pull-right[
+
+```{r}
+wilcox.test(Control, Experimental,
+            paired = FALSE)
+```
+
+]
+
+---
+
+### Permutation (Randomization) Test
+
+Of all the possible patterns of the data, **how unusual is the observed pattern?**
+
+The number of possible permutations is given by:
+
+$$\frac{n!}{r!(n-r)!}$$
+
+And yes, that is the **combination** formula. The number of *orders* cancels out. 
+
+Why do they still call it the **permutation test?** and not the *combination test?* I honestly don't know.
+
+---
+
+### Permutation (Randomization) Test
+
+.slightly-smaller[
+
+1. Calculate the possible number of patterns in the observed data using the **combinatorial formula**
+
+2. Assign **positive** signs to **one group** of the data and **negative** signs to the **other group**
+
+3. Find the **sum of the signed data**. Call this sum $D$.
+
+4. **Find greater values of $|D|$ ** by **switching signs on the data**.
+
+5. Take the **count of patterns** that lead to **equal or greater** values of $|D|$
+
+6. Take the **count in step 5** (adding 1 for the observed pattern), and **divide by the possible number of patterns** calculated in step 1 to find the $p$-value.
+]
+---
+### Permutation Test Example
+
+```{r echo=FALSE}
+data.frame(Control, Experimental) %>% 
+  kable("html",
+        align="c") %>% 
+  kable_styling(font_size = 16) %>% 
+  column_spec(1, color="#fffaf1", background = "#3021D6", width = "4cm") %>% 
+  column_spec(2, color="#3021D6", background = "#fffaf1", width = "4cm")
+```
+
+***
+.pull-left[
+
+```{r echo=FALSE}
+data.frame(-Control, Experimental) %>% 
+  kable("html",
+        align="c",
+        col.names=c("Control",
+                    "Experimental")) %>% 
+  kable_styling(font_size = 16) %>% 
+  column_spec(1, color="#fffaf1", background = "#3021D6", width = "4cm") %>% 
+  column_spec(2, color="#3021D6", background = "#fffaf1", width = "4cm")
+```
+
+
+$$D = `r sum(c(Experimental, -Control))`$$
+]
+
+.pull-right[
+
+```{r echo=FALSE}
+
+Control2<-c(-12,
+           -14,
+           -22,
+           -25,
+           40)
+
+Experimental2<-c(-38,
+                42,
+                44,
+                48,
+                50)
+
+data.frame(Control2, Experimental2) %>% 
+  kable("html",
+        align="c",
+        col.names=c("Control",
+                    "Experimental")) %>% 
+  kable_styling(font_size = 16) %>% 
+  column_spec(1, color="#fffaf1", background = "#3021D6", width = "4cm") %>% 
+  column_spec(2, color="#3021D6", background = "#fffaf1", width = "4cm")
+```
+
+$$D = `r sum(c(Experimental2, Control2))`$$
+]
+
+---
+
+### Permutation Test Example
+
+.pull-left[
+```{r echo=FALSE}
+
+Control2<-c(-12,
+           -14,
+           -22,
+           -25,
+           40)
+
+Experimental2<-c(-38,
+                42,
+                44,
+                48,
+                50)
+
+data.frame(Control2, Experimental2) %>% 
+  kable("html",
+        align="c",
+        col.names=c("Control",
+                    "Experimental")) %>% 
+  kable_styling(font_size = 16) %>% 
+  column_spec(1, color="#fffaf1", background = "#3021D6", width = "4cm") %>% 
+  column_spec(2, color="#3021D6", background = "#fffaf1", width = "4cm")
+```
+
+.slightly-smaller[
+There is **only one** pattern more extreme (in the same direction) than the **observed pattern**.
+]
+]
+
+.pull-right[
+
+.slightly-smaller[
+There are $_{10}C_5$ (10 numbers combined 5 at a time) possible patterns of data:
+
+$$\frac{10!}{5!(10-5!)}=252$$
+
+
+
+For a **two-tailed** test, we **double** the number of patterns.
+]
+]
+
+$$p_{one-tailed}=\frac{2}{252}=0.0079$$
+
+$$p_{two-tailed}=\frac{4}{252}=0.016$$
+
+---
+
+### Repeated-measures nonparametric tests
+
+> McNemar test
+
+> binomial (sign) test
+
+> Wilcoxon signed-rank test
+
+> Paired permutation (Randomization) test
+
+---
+
+### McNemar test
+
+Measures **categorical change**:
+
+> **Condition** change (*e.g,* unsupportive $\to$ supportive)
+
+> **Sign** change (positive $\to$ negative; negative $\to$ positive)
+
+***
+
+```{r echo=FALSE}
+pre<-c("Before",
+        "Before")
+
+posneg<-c("positive",
+          "negative")
+
+negative<-c("A",
+           "C")
+positive<-c("B",
+           "D")
+
+data.frame(pre, posneg, negative, positive) %>% 
+  flextable() %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(pre = "",
+                    posneg = "") %>% 
+  add_header_row(values = c(" ",
+                            "After"),
+                 colwidths = c(2, 2)) %>% 
+  merge_v(j=1, part = "body") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 3:4, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in") 
+
+```
+
+
+.center[
+
+cells A and D in the table represent **changes**
+
+]
+
+---
+
+### McNemar Test Example 1
+
+```{r echo=FALSE}
+pre<-c("Before",
+        "Before")
+
+posneg<-c("positive",
+          "negative")
+
+negative<-c(5,
+           8)
+positive<-c(16,
+           20)
+
+data.frame(pre, posneg, negative, positive) %>% 
+  flextable() %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(pre = "",
+                    posneg = "") %>% 
+  add_header_row(values = c("If $A+D > 20$, use $\\chi^2$",
+                            "After"),
+                 colwidths = c(2, 2)) %>% 
+  merge_v(j=1, part = "body") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 3:4, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in") %>% 
+  colformat_md(part="header")
+
+```
+
+$$\chi^2_{obs}(1)=\frac{(A-D)^2}{A+D}=\frac{15^2}{25}=9$$
+
+```{r}
+pchisq(9, df=1, lower.tail=FALSE)
+```
+
+---
+
+### McNemar Test Example 2
+
+```{r echo=FALSE}
+pre<-c("Before",
+        "Before")
+
+posneg<-c("positive",
+          "negative")
+
+negative<-c(2,
+           8)
+positive<-c(16,
+           15)
+
+data.frame(pre, posneg, negative, positive) %>% 
+  flextable() %>% 
+  align(align = "center",
+        part = "all") %>% 
+  set_header_labels(pre = "",
+                    posneg = "") %>% 
+  add_header_row(values = c("If $A+D \\le 20$, use binomial",
+                            "After"),
+                 colwidths = c(2, 2)) %>% 
+  merge_v(j=1, part = "body") %>% 
+  color(color="#0331a1", part = "all") %>% 
+  font(fontname = 'Merriweather', part = "all") %>% 
+  fontsize(size = 20, part = "all") %>% 
+  border_remove() %>% 
+  border(i = 1:2, j = 3:4, border = fp_border(color = "#5ac2ad")) %>% 
+  width(width = 12, unit = "in") %>% 
+  colformat_md(part="header")
+
+```
+
+$$p(s\ge \text{max}(A, D)|\pi=0.5, n=A+D)=0.0012$$
+
+.center[
+or
+]
+
+$$p(s \le \text{min}(A, D)|\pi = 0.5, n = A+D)$$ 
+
+.center[
+Same thing.
+]
+---
+
+### Binomial (sign) test
+
+Treats **categorical change** for each pair of observations as a **50/50** proposition. 
+
+Applies **binomial likelihood formula**.
+
+$$p(s \ge s_{obs}|\pi = 0.5, n)=\sum \frac{n!}{s!f!}\pi^s (1-\pi)^f$$
+
+
+**Ignores ties.**
+
+---
+
+### Binomial (sign) test example
+
+```{r echo=FALSE}
+Participant<-1:7
+Condition1<-c(13,
+42,
+9,
+5,
+6,
+8,
+18
+)
+
+Condition2<-c(5,
+36,
+2,
+0,
+9,
+7,
+9
+)
+
+Deltasign<-c("+",
+"+",
+"+",
+"+",
+"–",
+"+",
+"+"
+)
+
+data.frame(Participant, Condition1, Condition2, Deltasign) %>% 
+  kable("html",
+        col.names=c("Participant",
+                    "Condition 1",
+                    "Condition 2",
+                    "Sign of \\(\\Delta\\)"),
+        escape=FALSE,
+        align = "c") %>% 
+  kable_styling() %>% 
+  column_spec(4, color="#fffaf1", background = "#3021D6", width = "4cm")
+```
+
+$$p(s\ge 6|\pi=0.5, n=7)=0.0625$$
+
+---
+
+### Wilcoxon signed-rank test
+
+paired-samples version of the Wilcoxon-Mann-Whitney 
+
+> `R` uses the Wilcoxon $W$ for *both* tests
+
+Evaluates **relative magnitudes** of **positive** differences and **negative** differences
+
+Significant Wilcoxon results come from combinations of **large** and/or frequent **positive** shifts in one direction (*positive* or *negative*).
+
+---
+
+### Wilcoxon signed-rank test example
+
+Rank differences by **absolute value**, add the **sign** of the **observed difference**
+
+
+```{r echo=FALSE}
+Participant<-1:7
+Condition1<-c(13,
+42,
+9,
+5,
+6,
+8,
+18
+)
+
+Condition2<-c(5,
+36,
+2,
+0,
+9,
+7,
+9
+)
+
+Difference<-Condition1-Condition2
+
+Signrank<-c(
+6,
+4,
+5,
+3,
+-2,
+1,
+7)
+
+data.frame(Participant, Condition1, Condition2, Difference, Signrank) %>% 
+  kable("html",
+        col.names=c("Participant",
+                    "Condition 1",
+                    "Condition 2",
+                    "Difference",
+                    "Signed Rank"),
+        escape=FALSE,
+        align = "c") %>% 
+  kable_styling(font_size = 20) %>% 
+  column_spec(5, color="#fffaf1", background = "#3021D6", width = "4cm")
+```
+
+If there are ties in the absolute values, average ranks above and below (and add the observed sign)
+
+---
+
+### Wilcoxon signed-rank test example
+
+.pull-left[
+
+```{r echo=FALSE}
+Participant<-1:7
+
+Signrank<-c(
+6,
+4,
+5,
+3,
+-2,
+1,
+7)
+
+data.frame(Participant, Signrank) %>% 
+  kable("html",
+        col.names=c("Participant",
+                    "Signed Rank"),
+        escape=FALSE,
+        align = "c") %>% 
+  kable_styling(font_size = 28) %>% 
+  column_spec(2, color="#fffaf1", background = "#3021D6", width = "4cm")
+```
+]
+
+.pull-right[
+
+Add up positive ranks:
+$$T_p=26$$
+
+Add up negative ranks:
+$$T_n=2$$
+One-tailed test $W$:
+
+$$W = T_p=26$$
+
+Two-tailed $W$:
+$$W=\text{max}(T_p, T_n)=26$$
+]
+
+---
+
+### Wilcoxon test: significance
+
+For $n\le 30$, use tables
+
+For $n>30$ this - I shit you not - is the formula for the **normal approximation** to $W$:
+
+$$z_{obs}=\frac{W-\frac{n(n+1)}{4}}{\sqrt{\frac{n(n+1)(2n+1)}{24}-\frac{1}{2} \sum_{j=1}^g t_j(t_j-1)(t_j+1)}}$$
+
+where $g$ is the number of tie clusters and $t_j$ is the number of tied ranks in the cluster.
+
+Which really makes us **appreciate** `wilcox.test(x, y, paired=TRUE)`
+
+---
+
+### Wilcoxon test in `R`
+
+```{r}
+wilcox.test(Condition1, Condition2, paired=TRUE)
+```
+
+---
+
+### Paired randomization test
+
+Same idea as regular **Permutation Test**
+
+Assumption is that the **differences** are the same, but the **signs** can be positive or negative
+
+> Big differences matter more than little differences
+
+Number of possible sign combinations: 
+
+> $2^n$ (when there are no ties)
+
+>> $2^{n - \# of~ties}$ (when there are ties)
+
+---
+### Paired randomization test example
+
+.pull-left[
+
+```{r echo=FALSE}
+Participant<-1:7
+Condition1<-c(13,
+42,
+9,
+5,
+6,
+8,
+18
+)
+
+Condition2<-c(5,
+36,
+2,
+0,
+9,
+7,
+9
+)
+
+Difference<-Condition1-Condition2
+
+
+
+data.frame(Condition1, Condition2, Difference) %>% 
+  kable("html",
+        col.names=c("Cond. 1",
+                    "Cond. 2",
+                    "Diff."),
+        escape=FALSE,
+        align = "c") %>% 
+  kable_styling(font_size = 24) %>% 
+  column_spec(3, color="#fffaf1", background = "#3021D6")
+```
+
+$$\sum d = 33$$
+
+]
+
+.pull-right[
+.slightly-smaller[
+
+
+total number of combinations:
+
+$$2^n=128$$
+
+Rank of *possible* $\sum d$:
+
+1. 39 (all positive)
+
+2. 37 (only p6 negative)
+
+3. 33 (observed)
+
+$$p_{one-tail}=\frac{3}{128}=0.0234$$
+$$p_{two-tail}=2\left(\frac{3}{128}\right)=0.0468$$
+]
+]

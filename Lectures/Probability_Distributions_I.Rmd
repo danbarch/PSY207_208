@@ -1,0 +1,2327 @@
+---
+title: "Probability Distributions I"
+author: ""
+date: "`r Sys.Date()`"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [autumnleaves.css]
+    nature: 
+    highlightStyle: none
+    highlightLines: true
+    highlightSpans: true
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE,
+                      fig.showtext = TRUE)
+library(tidyverse) # load tidyverse package
+library(MASS)
+library(ggplot2)
+library(ggthemes)
+library(kableExtra)
+library(flextable)
+library(ftExtra)
+library(cowplot)
+library(xaringan)
+library(xaringanthemer)
+#library(gg3D)
+library(leaflet)
+library(maps)
+library(fontawesome)
+library(ggrepel)
+library(DescTools)
+library(renderthis)
+library(wesanderson)
+library(DiagrammeR)
+
+load("Sampling_Data_for_CLT_Demo.RData")
+
+## Function to sample from a Chi Squared Distribution
+samplingchi<-function(n,size,df){
+sampmean<-rep(NA,n)	                #create an empty vector where 
+                                    #we will store the mean values
+
+sampsd<-rep(NA,n)                   #create an empty vector where 
+                                    #we will store our sd values
+
+for (i in 1:n){		                  #indicate that we are repeating 
+                                    #the operation n times
+  
+samp<-rchisq(size,df)	              #sample 'size' number of random (r) 
+                                    #scores from a chi squared (chisq) 
+                                    #distribution with df = df 
+
+sampmean[i]<-mean(samp)			        #take the mean of those scores
+
+sampsd[i]<-sd(samp)}			          #take the sd of those scores
+
+sampdf<-data.frame(sampmean,sampsd)	#make a data frame out of the means 
+                                    #and the standard deviations 
+
+return(sampdf)}	                    #the output of the function 
+                                    #is the data frame
+
+## To create pdf version:
+
+# setwd("~/Documents/PSY 208/PSY_207-208_23-24/Lectures")
+# renderthis::to_pdf("Probability_Distributions_I.Rmd", complex_slides = TRUE)
+
+## To create PowerPoint version:
+
+# renderthis::to_pptx("Probability_Distributions_I.Rmd", complex_slides = TRUE)
+
+```
+
+
+
+
+### Probability Distributions
+
+**Probability Distributions** provide **mathematical models** for how measurements of variables behave.
+
+We use those **models** to:
+
+> describe populations
+
+> make predictions
+
+> make statistical inferences
+
+---
+### Empirical Distributions
+
+We use the term **empirical** to generally to refer to things that have been **observed** (usually in a scientific context like an experiment).
+
+**Empirical distributions** describe how **observed data** are distributed.
+
+**Empirical data** almost never *match* the **models**! 
+
+> We use empirical data to **refine** our models, **compare** models, and/or **reject** models.
+
+---
+
+### Density, Probability, and Mass
+
+**Continuous distributions** are **functions of $(x)$** where ** $f(x)$** (or ** $y$**) is the **probability density**.
+
+As with our discussion of **moments**\* , the **density** is related to actual **probability** *via* a **physics metaphor**:
+
+$$Mass = Density \times Volume$$
+Like physical density, the **probability density** at point ** $x$** has some useful comparative applications, but the **probability over a range of $x$ values** is much more frequently important.
+
+.footnote[\*in the *Categorizing and Summarizing Variables* module]
+---
+
+### Density, Probability, and Mass
+
+.pull-left[
+
+In a plot, **probability density** is the **height, or, $y$-value** of a distribution.
+
+The **probability** of observing any **exact $x$-value** in a continuous distribution is ** $0$**.
+
+.slightly-smaller[
+>*.e.g*: The probability of finding a person who is *exactly* 60.147383722084 inches tall.
+]
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 7}
+data.frame(x = seq(0, 8, 8/1000)) %>% 
+             mutate(y = dchisq(x, df = 3)) %>% 
+             ggplot(aes(x, y))+
+             geom_line(linewidth = 1.5)+
+             theme_tufte()+
+             theme_xaringan(css_file = "autumnleaves.css")+
+  geom_segment(x=3,
+               xend = 3,
+               y = 0,
+               yend = dchisq(3, df = 3),
+               lty = 2)+
+  annotate("text",
+           x = 3.1,
+           y = dchisq(3, 3),
+           label = bquote("density"==.(round(dchisq(3, 3), 3))),
+           size = 30/.pt,
+           hjust = 0,
+           color = "#ffd200")+
+  annotate("text",
+           x = 0.2,
+           y = 0,
+           label = "p(x) = 0",
+           size = 30/.pt,
+           hjust = 0,
+           vjust = 0,
+           color = "#ffd200")+
+  labs(x = "x",
+       y = "Probability\nDensity")
+
+```
+
+]
+
+---
+
+### Density, Probability, and Mass
+
+.pull-left[
+
+Meaningful **probability** values are found by **integrating density over ranges of $x$**...
+
+.slightly-smaller[
+> ...which we will do with tables and software.
+
+]
+
+Probabilities are therefore represented by **areas under curves**.
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 7}
+dens.df<-data.frame(x = seq(0, 8, 8/1000)) %>% 
+             mutate(y = dchisq(x, df = 3)) 
+dens.df %>% 
+             ggplot(aes(x, y))+
+             geom_line(linewidth = 1.5)+
+             theme_tufte()+
+             theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(dens.df, dens.df$x>=3 & dens.df$x<=4),
+            fill = "#FFA400")+
+  annotate("text",
+           x = 7,
+           y = dchisq(3.5, 3),
+           label = "p(3 \u2265 x \u2265 4)\n= 0.13",
+           size = 30/.pt,
+           hjust = 1,
+           vjust = 0,
+           color = "#ffd200")+
+  labs(x = "x",
+       y = "Probability\nDensity")
+
+```
+
+]
+
+---
+### Density, Mass, and Probability
+
+.slightly-smaller[
+For **discrete probability distributions** (*e.g.*, the **binomial distribution**), the distribution function is known as the **probability mass function (PMF)**.
+
+Each **discrete probability** is **non-zero** and **meaningful**; it may help to think of density **integrated across a width of 1** at each point.
+
+***
+
+]
+
+```{r echo = FALSE, fig.height = 4.5, fig.width = 12}
+data.frame(x = 0:1,
+           y = c(0.5, 0.5)) %>% 
+  ggplot(aes(x, y))+
+  geom_bar(stat = "identity",
+           color = "#ffd200",
+           fill = "#8f010b")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  scale_x_continuous(breaks = c(0, 1),
+                     limits = c(-0.8, NA))+
+  geom_segment(x=-0.6,
+               xend = -0.6,
+               y = 0,
+               yend = 0.5,
+               linewidth = 1.5)+
+    geom_segment(x=-0.7,
+               xend = -0.5,
+               y = 0.5,
+               yend = 0.5,
+               linewidth = 1.5)+
+    geom_segment(x=-0.7,
+               xend = -0.5,
+               y = 0,
+               yend = 0,
+               linewidth = 1.5)+
+  annotate("text",
+           x = -0.7,
+           y = 0.25,
+           label = "height = 0.5",
+           angle = 90,
+           size = 30/.pt)+
+    geom_segment(x=-0.45,
+               xend = 0.45,
+               y = 0.05,
+               yend = 0.05,
+               linewidth = 1.5)+
+    geom_segment(x=-0.45,
+               xend = -0.45,
+               y = 0,
+               yend = 0.1,
+               linewidth = 1.5)+
+    geom_segment(x=0.45,
+               xend = 0.45,
+               y = 0,
+               yend = 0.1,
+               linewidth = 1.5)+
+  annotate("text",
+           x = 0,
+           y = 0.1,
+           label = "width = 1",
+           size = 30/.pt)+
+    annotate("text",
+           x = 1,
+           y = 0.25,
+           label = "area = p = 0.5",
+           size = 30/.pt)+
+  labs(x = "s",
+       y = "Probability\nMass",
+       title = bquote("Binomial with 1 = 2, "~pi==0.5))+
+  theme(legend.position = "none",
+        plot.title = element_text(size = 30))
+```
+
+
+---
+### Distributions in `R`
+
+`R` has a built-in\* set of functions for **finding information about distributions**
+
+Each function is a combination of a **prefix** and a **base**, followed by the **arguments** that define the desired output.
+
+.footnote[
+\*technically, from the `stats` package, but that loads automatically
+]
+---
+
+### Distributions in `R`: Prefixes
+
+```{r echo=FALSE}
+Prefix<-c("d",
+            "p",
+            "q",
+            "r")
+
+Function<-c("Density",
+           "Probability",
+           "Quantile",
+           "Random")
+
+Description<-c("Probability density at x",
+          "Cumulative probability at x",
+          "Value of x for the specified quantile",
+          "n random values sampled from the distribution")
+
+data.frame(Prefix, Function, Description) %>% 
+  flextable() %>% 
+  colformat_md(part = "body") %>% 
+  color(color = "#FCF7EB", part = "all") %>% 
+  width(j = 1, width = 1, unit = "in") %>% 
+  width(j = 2, width = 2, unit = "in") %>% 
+  width(j = 3, width = 4, unit = "in") %>% 
+  fontsize(size = 20, part = "all")
+```
+
+
+---
+
+### Distributions in `R`: Bases
+
+```{r echo=FALSE}
+distribution<-c("Uniform",
+            "Normal",
+            "Binomial",
+            "$\\chi^2$",
+            "beta",
+            "$t$",
+            "Poisson",
+            "$F$")
+
+root<-c("unif(...)",
+           "norm(...)",
+           "binom(...)",
+           "chisq(...)",
+           "beta(...)",
+           "t(...)",
+           "pois(...)",
+        "F")
+
+shapes<-c("min, max",
+          "mean, sd",
+          "size, prob",
+          "df",
+          "alpha, beta",
+          "df",
+          "lambda",
+          "df1, df2")
+
+defaults<-c("0, 1",
+            "0, 1",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-",
+            "-")
+data.frame(distribution, root, shapes, defaults) %>% 
+  flextable() %>% 
+  set_header_labels(shapes = "shape parameters") %>% 
+  colformat_md(part = "body") %>% 
+  color(color = "#FCF7EB", part = "all") %>% 
+  width(j = 1, width = 2, unit = "in") %>% 
+  width(j = 2, width = 2, unit = "in") %>% 
+  width(j = 3, width = 2, unit = "in") %>% 
+  width(j = 4, width = 2, unit = "in") %>% 
+  fontsize(size = 20, part = "all")
+    
+```
+
+.slightly-smaller[
+
+
+Note: The shape parameters are the **sufficient statistics** for the distribution
+
+
+]
+
+---
+### The Binomial Distribution
+
+The **binomial distribution** describes the **probability** of **outcomes** given ** $N$** and ** $\pi$**.
+
+It provides a **model** for the **expectation** of **binomial** data.
+
+> Reminder: binomial data can be **anything** we can make a proportion out of, *e.g.*:
+
+>> Number of *heads* out of total number of flips
+
+>> Number of **participants** out of total who exhibit a particular **behavior** 
+
+---
+
+### The Binomial Distribution
+
+One flip of a fair coin:
+
+.pull-left[
+```{r echo = FALSE}
+data.frame(x = 0:1,
+           y = c(0.5, 0.5)) %>% 
+  ggplot(aes(x = x, y = y))+
+  geom_bar(stat = "identity")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "Probability Mass")+
+  scale_x_continuous(breaks = c(0, 1))+
+  ggtitle("Probability")
+```
+
+]
+
+.pull-right[
+
+.slightly-smaller[
+The **probability mass** is:
+
+> the probability of each specific outcome (on the $x$-axis)
+
+> equal to the **binomial likelihood** of each outcome
+
+> $$\frac{N!}{s!f!}\pi^s(1-\pi)^f$$
+
+]
+]
+
+---
+
+### The Binomial Distribution
+
+One flip of a fair coin:
+
+.pull-left[
+.slightly-smaller[
+
+The **cumulative probability** is:
+
+> the **sum** of the probability mass up to each $s$ value (on the $x$-axis).
+
+> **equal to 1** at ** $s = N$**
+
+For **any cumulative distribution function**, the **maximum value is 1** and **occurs at the maximum $x$**.
+]
+]
+
+.pull-right[
+
+```{r echo = FALSE}
+data.frame(x = 0:1,
+           y = c(0.5, 1)) %>% 
+  ggplot(aes(x = x, y = y))+
+  geom_bar(stat = "identity")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "Probability")+
+  scale_x_continuous(breaks = c(0, 1))+
+  ggtitle("Cumulative")
+```
+
+
+]
+
+---
+
+### The Binomial Distribution
+
+Two flips of a fair coin:
+
+.pull-left[
+```{r echo = FALSE}
+data.frame(x = 0:2,
+           y = c(0.25, 0.5, 0.25)) %>% 
+  ggplot(aes(x = x, y = y))+
+  geom_bar(stat = "identity")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "Probability Mass")+
+  scale_x_continuous(breaks = c(0, 1, 2))+
+  ggtitle("Probability")
+```
+
+]
+
+.pull-right[
+
+```{r echo = FALSE}
+data.frame(x = 0:2,
+           y = c(0.25, 0.75, 1)) %>% 
+  ggplot(aes(x = x, y = y))+
+  geom_bar(stat = "identity")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "Probability")+
+  scale_x_continuous(breaks = c(0, 1, 2))+
+  ggtitle("Cumulative")
+```
+
+
+]
+
+---
+
+### The Binomial Distribution
+
+Three flips of a fair coin:
+
+.pull-left[
+```{r echo = FALSE}
+data.frame(x = 0:3,
+           y = c(0.125, 0.375, 0.375, 0.125)) %>% 
+  ggplot(aes(x = x, y = y))+
+  geom_bar(stat = "identity")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "Probability Mass")+
+  scale_x_continuous(breaks = c(0, 1, 2, 3))+
+  ggtitle("Probability")
+```
+
+]
+
+.pull-right[
+
+```{r echo = FALSE}
+data.frame(x = 0:3,
+           y = c(0.125, 0.5, 0.875, 1)) %>% 
+  ggplot(aes(x = x, y = y))+
+  geom_bar(stat = "identity")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "Probability")+
+  scale_x_continuous(breaks = c(0, 1, 2, 3))+
+  ggtitle("Cumulative")
+```
+
+]
+---
+
+### Binomial Distribution Characteristics
+
+$N$ and $\pi$ are **all you need to know**
+
+> they are the **sufficient statistics** for the binomial distribution
+
+$$\text{E}(x)=N\pi$$
+
+$$\text{V}(x)=N\pi(1-\pi)$$
+
+$$SD(x)=\sqrt{N\pi(1-\pi)}$$
+
+---
+
+### Binomial Distribution: $n = 10,~\pi = 0.5$
+
+.pull-left[
+```{r echo = FALSE}
+x<-0:10
+y<-dbinom(x, 10, 0.5)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_bar(stat = "identity")+
+  scale_x_continuous(breaks = x)+
+  theme_tufte()+
+  labs(x = "s")+
+  theme_xaringan(css_file = "autumnleaves.css")
+```
+
+]
+
+.pull-right[
+
+> $$\text{E}(x)=n\pi\\=(10)(0.5)=5$$
+
+***
+
+> $$\text{V}(x)=n\pi(1-\pi)\\=(10)(0.5)(0.5)=2.5$$
+
+***
+
+> $$SD(x)=\sqrt{\text{V}(x)}\\=\sqrt{2.5}$$
+
+]
+
+---
+
+### Different $\pi$, Same $n$
+
+.pull-left[
+
+```{r echo = FALSE}
+x<-0:10
+y<-dbinom(x, 10, 0.25)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_bar(stat = "identity")+
+  scale_x_continuous(breaks = x)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       title = bquote(pi~"= 0.25"))+
+  annotate("text",
+           x = 6,
+           y = 0.25,
+           hjust = 0,
+           vjust = 1,
+           label = "E(x) = 2.5\nV(x) = 1.875",
+           size = 30/.pt)+
+  theme(title = element_text(size = 40))
+```
+
+]
+.pull-right[
+
+```{r echo = FALSE}
+x<-0:10
+y<-dbinom(x, 10, 0.75)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_bar(stat = "identity")+
+  scale_x_continuous(breaks = x)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       title = bquote(pi~"= 0.75"))+
+  annotate("text",
+           x = 4,
+           y = 0.25,
+           hjust = 1,
+           vjust = 1,
+           label = "E(x) = 7.5\nV(x) = 1.875",
+           size = 30/.pt)+
+  theme(title = element_text(size = 40))
+```
+]
+
+
+---
+
+### Different $n$, Same $\pi$
+
+
+```{r echo = FALSE, fig.width = 12, fig.align = "center"}
+xm<-0:10
+ym<-dbinom(x, 10, 0.5)
+
+m<-data.frame(xm, ym) %>% 
+  ggplot(aes(xm, ym))+
+  geom_bar(stat = "identity")+
+  scale_x_continuous(breaks = xm)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "p. mass",
+       title = expression(paste(italic(n), 
+                      "= 10")))+
+  coord_fixed(ratio = 20)+
+  annotate("text",
+           x = 10,
+           y = 0.25,
+           hjust = 1,
+           vjust = 1,
+           label = "E(x) = 2.5\nV(x) = 1.875",
+           size = 20/.pt)+
+  theme(title = element_text(size = 30))
+
+xc<-0:20
+yc<-dbinom(xc, 20, 0.5)
+
+c<-data.frame(xc, yc) %>% 
+  ggplot(aes(xc, yc))+
+  geom_bar(stat = "identity")+
+  scale_x_continuous(breaks = xc)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "p. mass",
+       title = expression(paste(italic(n), 
+                      "= 20")))+
+  annotate("text",
+           x = 20,
+           y = 0.25,
+           hjust = 1,
+           vjust = 1,
+           label = "E(x) = 10\nV(x) = 5",
+           size = 20/.pt)+
+  coord_fixed(ratio = 20)+
+  theme(title = element_text(size = 30))
+
+plot_grid(m, c, nrow = 2)+
+        theme(plot.background = element_rect(fill = "#380001",
+                                             color = "#380001"))
+```
+
+---
+
+### Using the Binomial Model
+
+.pull-left[
+
+```{r echo = FALSE}
+data.frame(xc, yc) %>%
+  mutate(fill = case_when(xc == 10 ~ "highlight",
+                          TRUE ~ "nohighlight")) %>% 
+  ggplot(aes(xc, yc, fill = fill))+
+  geom_bar(stat = "identity")+
+    scale_fill_manual(values = c("#CF4520",
+                                 "#ffd200"))+
+  scale_x_continuous(breaks = xc)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "p. mass",
+       title = bquote(n~"= 20, "~pi~"= 0.5"))+
+  theme(title = element_text(size = 30),
+        axis.text.x = element_text(size = 12),
+        legend.position = "none")
+```
+
+]
+
+.pull-right[
+
+.slightly-smaller[
+Imagine we ask ** $20$** participants to answer a **yes/no** question.
+
+We will **assume** that the **probability** of answering **yes** is ** $50\%$**.
+
+> *i.e.*, **assume the binomial model on the left**.
+
+What's the **likelihood** of observing **exactly $10$** ***yes*** responses?
+
+$$p(s=10|20, 0.5)=`r round(dbinom(10, 20, 0.5), 2)`$$
+]
+
+]
+---
+
+### Using the Binomial Model
+
+.pull-left[
+
+```{r echo = FALSE, fig.height = 3.5}
+
+data.frame(xc, yc = dbinom(xc, 20, 0.5)) %>%
+  mutate(fill = case_when(xc <= 10 ~ "highlight",
+                          TRUE ~ "nohighlight")) %>% 
+  ggplot(aes(xc, yc, fill = fill))+
+  geom_bar(stat = "identity")+
+    scale_fill_manual(values = c("#CF4520",
+                                 "#ffd200"))+
+  scale_x_continuous(breaks = xc)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "likelihood",
+       title = bquote(n~"= 20, "~pi~"= 0.5"))+
+  theme(title = element_text(size = 30),
+        axis.text.x = element_text(size = 12),
+        legend.position = "none")
+
+
+```
+
+]
+
+.pull-right[
+
+.slightly-smaller[
+
+What's the **cumulative likelihood** of observing ** $10$ or fewer** ***yes*** responses?
+
+
+$$p(s\le10|20, 0.5)=`r round(pbinom(10, 20, 0.5, lower.tail = TRUE), 2)`$$
+
+]
+]
+
+***
+
+.pull-left[
+
+.slightly-smaller[
+
+What's the **cumulative likelihood** of observing ** $10$ or more** ***yes*** responses?
+
+
+$$p(s\ge10|20, 0.5)=`r round(pbinom(9, 20, 0.5, lower.tail = FALSE), 2)`$$
+
+]
+
+
+]
+
+.pull-right[
+
+```{r echo = FALSE, fig.height = 3.5}
+
+data.frame(xc, yc = dbinom(xc, 20, 0.5)) %>%
+  mutate(fill = case_when(xc >= 10 ~ "highlight",
+                          TRUE ~ "nohighlight")) %>% 
+  ggplot(aes(xc, yc, fill = fill))+
+  geom_bar(stat = "identity")+
+    scale_fill_manual(values = c("#CF4520",
+                                 "#ffd200"))+
+  scale_x_continuous(breaks = xc)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "likelihood",
+       title = bquote(n~"= 20, "~pi~"= 0.5"))+
+  theme(title = element_text(size = 30),
+        axis.text.x = element_text(size = 12),
+        legend.position = "none")
+
+
+```
+
+
+]
+
+---
+
+### Using the Binomial Model
+
+.pull-left[
+
+```{r echo = FALSE, fig.height = 8}
+
+data.frame(xc, yc = dbinom(xc, 20, 0.5)) %>%
+  mutate(fill = case_when(xc >= 16 ~ "highlight",
+                          TRUE ~ "nohighlight")) %>% 
+  ggplot(aes(xc, yc, fill = fill))+
+  geom_bar(stat = "identity")+
+    scale_fill_manual(values = c("#CF4520",
+                                 "#ffd200"))+
+  scale_x_continuous(breaks = xc)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "likelihood",
+       title = bquote(n~"= 20, "~pi~"= 0.5"))+
+  theme(title = element_text(size = 30),
+        axis.text.x = element_text(size = 12),
+        legend.position = "none")
+
+
+```
+
+]
+
+.pull-right[
+
+
+
+What if we observed 16 ***yes*** responses?
+
+The probability of observing *at least* ** $16$** ***yesses*** is:
+
+```{r}
+pbinom(15, 20, 0.5, 
+       lower.tail = FALSE)
+```
+
+So...that's **weird**.
+
+
+]
+
+
+---
+
+### Using the Binomial Model
+
+.slightly-smaller[
+
+Let's **simulate** this experiment ** $1,000$** times **assuming $\pi = 0.5$** and see **how many times** we observe ** $16/20$ yesses out of $20$ participants**. 
+
+]
+
+.pull-left[
+
+```{r}
+
+set.seed(77)
+
+sim <- rbinom(n = 1000, 
+                   size = 20, 
+                   prob = 0.5)
+
+sum(sim >= 16)
+```
+
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 5}
+data.frame(sim) %>% 
+  ggplot(aes(sim))+
+  geom_histogram(binwidth = 1,
+                 color = "#CF4520")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "number of yes responses",
+       y = "frequency")+
+  xlim(0, 20)+
+  annotate("text",
+           x = 20,
+           y = 125,
+           hjust = 1,
+           label = "Five \nobservations\nof 16+",
+           size = 24/.pt)+
+  geom_segment(x = 18,
+               xend = 18,
+               y = 80,
+               yend = 20,
+               arrow = arrow())
+```
+
+]
+
+$$\frac{5}{1000}=0.005\approx0.0059$$
+---
+
+### Using the Binomial Model
+
+.pull-left[
+
+.slightly-smaller[
+
+Thus, our observation is associated with a really small **likelihood**.
+
+If we **repeated** the experiment **a bazillion times**, we'd expect to see a similar result about **six out of 1,000 times**.
+
+
+]
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 5}
+
+data.frame(xc, yc = dbinom(xc, 20, 0.5)) %>%
+  mutate(fill = case_when(xc >= 16 ~ "highlight",
+                          TRUE ~ "nohighlight")) %>% 
+  ggplot(aes(xc, yc, fill = fill))+
+  geom_bar(stat = "identity")+
+    scale_fill_manual(values = c("#CF4520",
+                                 "#ffd200"))+
+  scale_x_continuous(breaks = xc)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "likelihood",
+       title = bquote(n~"= 20, "~pi~"= 0.5"))+
+  theme(title = element_text(size = 30),
+        axis.text.x = element_text(size = 12),
+        legend.position = "none")
+
+
+```
+
+]
+
+We **might**, were we so inclined, take this as evidence that **the model itself is wrong**.
+
+
+---
+
+### The Binomial Model
+
+As ** $N$** increases, the **binomial distribution** starts to look a little **smoother**.
+
+.pull-left[
+
+```{r echo = FALSE}
+x<-70:130
+y<-dbinom(x, 200, 0.5)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_bar(stat = "identity")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "s",
+       y = "p. mass",
+       title = bquote(n~"= 200, "~pi~"= 0.5"))+
+  theme(title = element_text(size = 30))
+```
+
+]
+
+.pull-right[
+**Not coincidentally**, as it gets smoother, it starts to resemble a **normal distribution**.
+
+We'll revisit the **binomial** after we talk about the **normal**.
+]
+---
+
+### The Normal Distribution (Gauss, 1809)
+
+A **commonly observed shape** of the distribution of **continuous variables**
+
+When values scatter randomly without strict bounds, they frequently form a **Normal Distribution**
+
+> Heights of plants and animals
+
+> Highway speeds
+
+> **Measurement errors**
+
+---
+
+### Features of the Normal
+
+```{r echo = FALSE, fig.width = 12}
+x<-seq(4, 16, 10/10000)
+y<-dnorm(x, mean = 10, sd = 2)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5, color = "#ffd200")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(y = "Probability Density")+
+  annotate("text",
+           x = 10, y = 0.1,
+           label = "mean =\nmedian =\nmode\n(symmetry)",
+           size = 36/.pt)+
+  geom_segment(x = 10,
+               xend = 10,
+               y = 0.15,
+               yend = 0.19,
+               linewidth = 1.5,
+               arrow = arrow())
+```
+
+---
+
+### Features of the Normal
+
+```{r echo = FALSE, fig.width = 12}
+x<-seq(4, 16, 10/10000)
+y<-dnorm(x, mean = 10, sd = 2)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5, color = "#ffd200")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(y = "Probability Density")+
+  annotate("text",
+           x = 10, y = 0.05,
+           label = "the curve never\ntouches the axis",
+           size = 36/.pt)+
+  geom_segment(x = 7.5,
+               xend = 5.5,
+               y = 0.03,
+               yend = 0.01,
+               linewidth = 1.5,
+               arrow = arrow())+
+  geom_segment(x = 12.5,
+               xend = 14.5,
+               y = 0.03,
+               yend = 0.01,
+               linewidth = 1.5,
+               arrow = arrow())
+```
+
+---
+
+### Features of the Normal
+
+```{r echo = FALSE, fig.width = 12}
+x<-seq(4, 16, 10/10000)
+y<-dnorm(x, mean = 10, sd = 2)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5, color = "#ffd200")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(y = "Probability Density")+
+  annotate("text",
+           x = c(9, 11), 
+           y = 0.1,
+           label = "50%",
+           size = 48/.pt)+
+  geom_segment(x = 10,
+               xend = 10,
+               y = 0,
+               yend = dnorm(10, 10, 2),
+               linewidth = 1.5,
+               lty = 2)
+```
+
+---
+
+### Features of the Normal
+
+```{r echo = FALSE, fig.width = 12}
+x<-seq(4, 16, 10/10000)
+y<-dnorm(x, mean = 10, sd = 2)
+
+data.frame(x, y) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5, color = "#ffd200")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(y = "Probability Density")+
+  annotate("text",
+           x = c(8, 12), 
+           y = dnorm(12, 10, 2),
+           label = c("mean - 1 SD",
+                     "mean + 1 SD"),
+           size = 36/.pt,
+           vjust = 0,
+           hjust = c(1, 0))+
+  geom_segment(x = 8,
+               xend = 8,
+               y = 0,
+               yend = dnorm(8, 10, 2),
+               linewidth = 1.5,
+               lty = 2)+
+  geom_segment(x = 12,
+               xend = 12,
+               y = 0,
+               yend = dnorm(8, 10, 2),
+               linewidth = 1.5,
+               lty = 2)
+```
+
+---
+
+### Features of the Normal
+
+```{r echo = FALSE, fig.width = 12}
+x<-seq(4, 16, 10/10000)
+y<-dnorm(x, mean = 10, sd = 2)
+
+normal.df<-data.frame(x, y)
+
+normal.df %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5, color = "#ffd200")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(y = "Probability Density")+
+  annotate("text",
+           x = c(8, 12), 
+           y = dnorm(12, 10, 2),
+           label = c("mean - 1 SD",
+                     "mean + 1 SD"),
+           size = 24/.pt,
+           vjust = 0,
+           hjust = c(1, 0))+
+  geom_area(data=subset(normal.df, normal.df$x>=8&
+                                    normal.df$x<=12),
+            fill="#CF4520")+
+  annotate("text",
+           x = 10, 
+           y = 0.1,
+           label = "68%",
+           size = 60/.pt)+
+  geom_segment(x = 8,
+               xend = 8,
+               y = 0,
+               yend = dnorm(8, 10, 2),
+               linewidth = 1.5,
+               lty = 2)+
+  geom_segment(x = 12,
+               xend = 12,
+               y = 0,
+               yend = dnorm(8, 10, 2),
+               linewidth = 1.5,
+               lty = 2)
+```
+
+---
+
+### Features of the Normal
+
+```{r echo = FALSE, fig.width = 12}
+x<-seq(4, 16, 10/10000)
+y<-dnorm(x, mean = 10, sd = 2)
+
+normal.df<-data.frame(x, y)
+
+normal.df %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5, color = "#ffd200")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(y = "Probability Density")+
+  annotate("text",
+           x = c(6, 14), 
+           y = dnorm(14, 10, 2),
+           label = c("mean\n- 2 SD",
+                     "mean\n+ 2 SD"),
+           size = 24/.pt,
+           vjust = 0,
+           hjust = c(1, 0))+
+  geom_area(data=subset(normal.df, normal.df$x>=6&
+                                    normal.df$x<=14),
+            fill="#CF4520")+
+  annotate("text",
+           x = 10, 
+           y = 0.1,
+           label = "95%",
+           size = 60/.pt)+
+  geom_segment(x = 6,
+               xend = 6,
+               y = 0,
+               yend = dnorm(6, 10, 2),
+               linewidth = 1.5,
+               lty = 2)+
+  geom_segment(x = 14,
+               xend = 14,
+               y = 0,
+               yend = dnorm(14, 10, 2),
+               linewidth = 1.5,
+               lty = 2)
+```
+
+---
+
+### Features of the Normal
+
+```{r echo = FALSE, fig.width = 12}
+x<-seq(4, 16, 10/10000)
+y<-dnorm(x, mean = 10, sd = 2)
+
+normal.df<-data.frame(x, y)
+
+normal.df %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5, color = "#ffd200")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(y = "Probability Density")+
+  annotate("text",
+           x = c(4, 16), 
+           y = dnorm(16, 10, 2),
+           label = c("mean\n- 3 SD",
+                     "mean\n+ 3 SD"),
+           size = 24/.pt,
+           vjust = -1,
+           hjust = c(0, 1))+
+  geom_area(data=subset(normal.df, normal.df$x>=4&
+                                    normal.df$x<=16),
+            fill="#CF4520")+
+  annotate("text",
+           x = 10, 
+           y = 0.1,
+           label = "99.7%",
+           size = 60/.pt)+
+  geom_segment(x = 4,
+               xend = 4,
+               y = 0,
+               yend = dnorm(6, 10, 2),
+               linewidth = 1.5,
+               lty = 2)+
+  geom_segment(x = 16,
+               xend = 16,
+               y = 0,
+               yend = dnorm(14, 10, 2),
+               linewidth = 1.5,
+               lty = 2)
+```
+
+---
+
+### Features of the Normal
+
+** $\mu$** determines the **center point**; ** $\sigma^2$** determines the **spread**. 
+
+```{r echo = FALSE, fig.width = 12, fig.height = 4}
+df1<-data.frame(x1 = seq(-6, 6, 12/1000),
+                y1 = dnorm(seq(-6, 6, 12/1000), sd = 2))
+
+df2<-data.frame(x2 = seq(0, 6, 6/1000),
+                y2 = dnorm(seq(0, 6, 6/1000),
+                           mean = 3,
+                           sd = 1))
+
+df3<-data.frame(x3 = seq(-5, 13, 18/1000),
+                y3 = dnorm(seq(-5, 13, 18/1000),
+                           mean = 4,
+                           sd = 3))
+
+ggplot()+
+  geom_line(data = df1,
+            aes(x1, y1),
+            linewidth = 1.5,
+            color = "#038a20")+
+  geom_line(data = df2,
+            aes(x2, y2),
+            linewidth = 1.5,
+            color = "#CF4520")+
+    geom_line(data = df3,
+            aes(x3, y3),
+            linewidth = 1.5,
+            color = "#dcdbd6")+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  annotate("text",
+           color = "#038a20",
+           x = -3,
+           y = 0.3,
+           size = 36/.pt,
+           label = bquote(mu==0))+
+  annotate("text",
+           color = "#038a20",
+           x = -3,
+           y = 0.2,
+           size = 36/.pt,
+           label = bquote(sigma^2==4))+
+  annotate("text",
+           color = "#CF4520",
+           x = 6,
+           y = 0.354,
+           size = 36/.pt,
+           label = bquote(mu==3))+
+  annotate("text",
+           color = "#CF4520",
+           x = 6,
+           y = 0.25,
+           size = 36/.pt,
+           label = bquote(sigma^2==1))+
+  annotate("text",
+           color = "#dcdbd6",
+           x = 10,
+           y = 0.2,
+           size = 36/.pt,
+           label = bquote(mu==4))+
+  annotate("text",
+           color = "#dcdbd6",
+           x = 10,
+           y = 0.1,
+           size = 36/.pt,
+           label = bquote(sigma^2==9))+
+  labs(x = "x",
+       y = "Probability\nDensity",
+       title = bquote("Different "~mu~"and"~sigma^2))
+
+```
+
+.slightly-smaller[
+Note: like **circles** and **squares**, normal distributions are **always the same shape** (if it's not that shape, it's not a normal), but putting normals with different $\sigma^2$ on the same axis changes the aspect ratios.
+
+]
+
+---
+
+### Normal Density Function
+
+
+The **mean** and the **variance** are the **sufficient statistics** for the normal distribution.
+
+> *i.e.* those are the only two numbers you need to draw a given curve.
+
+They are the **only variables** in ** $f(x)$**\*.
+
+### $$f(x|\mu, \sigma^2) = \frac{1}{\sqrt{2\sigma^2\pi}}e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$
+
+
+
+.footnote[
+\*besides $x$
+]
+
+---
+
+### Normal Cumulative Probability
+
+.pull-left[
+
+```{r echo = FALSE, fig.height = 4}
+data.frame(x = seq(4, 16, 12/1000)) %>% 
+  mutate(y = dnorm(x, 10, 2)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "x",
+       y = "Probability Density")+
+  theme(axis.title = element_text(size = 20))
+```
+
+$$f(x|\mu, \sigma^2) = \frac{1}{\sqrt{2\sigma^2\pi}}e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$
+
+]
+
+.pull-right[
+
+```{r echo = FALSE, fig.height = 4}
+data.frame(x = seq(4, 16, 12/1000)) %>% 
+  mutate(y = pnorm(x, 10, 2)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "x",
+       y = "Cumulative Probability")+
+  theme(axis.title = element_text(size = 20))
+```
+
+.center[
+There is **no formulaic solution** for this function
+]
+
+]
+
+***
+
+.center[
+So, how do we find normal probabilities *without* a formula for **areas-under-the-curve**?
+]
+---
+
+### Normal Cumulative Probability
+
+
+
+To find areas under the normal curve: 
+
+.pull-left[
+
+.slightly-smaller[
+1. We can use **software**. 
+
+2. Even though there are **infinite** possible normal curves, they **all have the same shape** so we only need estimates for **one curve** and can transform any other curve to match.
+
+> That **one curve** is the ***standard normal distribution***
+
+]
+
+]
+
+.pull-right[
+
+```{r echo = FALSE, fig.height = 6}
+data.frame(x = seq(-3, 3, 6/1000)) %>% 
+  mutate(y = dnorm(x)) %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  annotate("text",
+           x = 0,
+           y = 0.1,
+           label = bquote(mu==0),
+           size = 36/.pt)+
+    annotate("text",
+           x = 1,
+           y = dnorm(1),
+           label = bquote(sigma==1),
+           hjust = -0.25,
+           size = 36/.pt)+
+  labs(x = "x = z",
+       y = "Probability Density",
+       title = "The Standard\nNormal Distribution")+
+  theme(axis.title = element_text(size = 24))
+```
+
+]
+---
+
+### The Standard Normal
+
+
+
+The **Standard Normal Distribution** is the **one** normal distribution with ** $\mu=0$** and ** $\sigma^2 = 1$**
+
+** $\sigma^2=1$** means that ** $\sigma$** also ** $=1$**.
+
+> ** $x = 1$** is **one standard deviation greater than the mean**. 
+
+> ** $x = -1$** is **one standard deviation less than the mean**.
+
+We can use **tables** to find accurate estimates for **areas under the curve** for the **standard normal**.
+
+---
+
+### The Standard Normal
+
+.slightly-smaller[
+
+Example 1: what is the **probability** of **randomly sampling** a value between $-1$ and $1$ from a **standard normal distribution**?
+
+> That is the **area between $z = -1$ and $z = 1$**.
+
+]
+
+.pull-left[
+
+.slightly-smaller[
+
+From a table:
+
+Area between $z = 1$ and the mean: ** $0.3414$**
+
+The area between $z = -1$ and the mean is **also $0.3414$** (the normal is symmetric).
+
+]
+
+.center[
+
+$0.3414+0.3414=$ ** $0.6828$**
+
+]
+
+]
+.pull-right[
+
+```{r echo = FALSE, fig.height = 5}
+zex1 <- data.frame(x = seq(-3, 3, 6/1000)) %>% 
+  mutate(y = dnorm(x)) 
+
+zex1 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex1, zex1$x >= -1 & zex1$x <= 1),
+            fill = "#FFA400")+
+  scale_x_continuous(breaks = c(-1, 0, 1))+
+  annotate("text",
+           x = 0,
+           y = dnorm(0),
+           vjust = 0,
+           label = bquote(mu),
+           size = 36/.pt)+
+  geom_segment(x = 0,
+               xend = 0,
+               y = 0,
+               yend = dnorm(0),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = -1,
+               xend = -1,
+               y = 0,
+               yend = dnorm(-1),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 1,
+               xend = 1,
+               y = 0,
+               yend = dnorm(1),
+               linewidth = 1.5,
+               lty = 2)+
+  ylim(0, 0.45)+
+  labs(x = "z",
+       y = "Probability Density")
+```
+
+]
+
+---
+### The Standard Normal
+
+.slightly-smaller[
+
+Example 1: what is the **probability** of **randomly sampling** a value between $-1$ and $1$ from a **standard normal distribution**?
+
+> That is the **area between $z = -1$ and $z = 1$**.
+
+]
+
+.pull-left[
+
+
+In `R`:
+
+```{r}
+
+pnorm(1)-pnorm(-1)
+
+```
+
+]
+.pull-right[
+
+```{r echo = FALSE, fig.height = 5}
+zex1 <- data.frame(x = seq(-3, 3, 6/1000)) %>% 
+  mutate(y = dnorm(x)) 
+
+zex1 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex1, zex1$x >= -1 & zex1$x <= 1),
+            fill = "#FFA400")+
+  scale_x_continuous(breaks = c(-1, 0, 1))+
+  annotate("text",
+           x = 0,
+           y = dnorm(0),
+           vjust = 0,
+           label = bquote(mu),
+           size = 36/.pt)+
+  geom_segment(x = 0,
+               xend = 0,
+               y = 0,
+               yend = dnorm(0),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = -1,
+               xend = -1,
+               y = 0,
+               yend = dnorm(-1),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 1,
+               xend = 1,
+               y = 0,
+               yend = dnorm(1),
+               linewidth = 1.5,
+               lty = 2)+
+  ylim(0, 0.45)+
+  labs(x = "z",
+       y = "Probability Density")
+```
+
+]
+
+---
+
+### The Standard Normal
+
+.slightly-smaller[
+
+Example 2: what is the **probability** of **randomly sampling** a value between $1$ and $2$ from a **standard normal distribution**?
+
+> That is the **difference** between the **area between $z = 2$ and the mean** and the **area between $z = 1$ and the mean**.
+
+]
+
+.pull-left[
+
+.slightly-smaller[
+
+From a table:
+
+Area between $z = 2$ and the mean: ** $0.4772$**
+
+Area between $z = 1$ and the mean: ** $0.3414$**
+
+]
+
+.center[
+
+$0.4772-0.3414=$ ** $0.1358$**
+
+]
+
+]
+.pull-right[
+
+```{r echo = FALSE, fig.height = 5}
+zex1 <- data.frame(x = seq(-3, 3, 6/1000)) %>% 
+  mutate(y = dnorm(x)) 
+
+zex1 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex1, zex1$x >= 1 & zex1$x <= 2),
+            fill = "#FFA400")+
+  scale_x_continuous(breaks = c(0, 1, 2))+
+  annotate("text",
+           x = 0,
+           y = dnorm(0),
+           vjust = 0,
+           label = bquote(mu),
+           size = 36/.pt)+
+  geom_segment(x = 0,
+               xend = 0,
+               y = 0,
+               yend = dnorm(0),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 1,
+               xend = 1,
+               y = 0,
+               yend = dnorm(1),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 2,
+               xend = 2,
+               y = 0,
+               yend = dnorm(2),
+               linewidth = 1.5,
+               lty = 2)+
+  ylim(0, 0.45)+
+  labs(x = "z",
+       y = "Probability Density")
+```
+
+]
+
+---
+### The Standard Normal
+
+.slightly-smaller[
+
+Example 2: what is the **probability** of **randomly sampling** a value between $1$ and $2$ from a **standard normal distribution**?
+
+> That is the **difference** between the **area between $z = 2$ and the mean** and the **area between $z = 1$ and the mean**.
+
+
+]
+
+.pull-left[
+
+
+In `R`:
+
+```{r}
+
+pnorm(2)-pnorm(1)
+
+```
+
+]
+.pull-right[
+
+```{r echo = FALSE, fig.height = 5}
+zex1 <- data.frame(x = seq(-3, 3, 6/1000)) %>% 
+  mutate(y = dnorm(x)) 
+
+zex1 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex1, zex1$x >= 1 & zex1$x <= 2),
+            fill = "#FFA400")+
+  scale_x_continuous(breaks = c(0, 1, 2))+
+  annotate("text",
+           x = 0,
+           y = dnorm(0),
+           vjust = 0,
+           label = bquote(mu),
+           size = 36/.pt)+
+  geom_segment(x = 0,
+               xend = 0,
+               y = 0,
+               yend = dnorm(0),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 1,
+               xend = 1,
+               y = 0,
+               yend = dnorm(1),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 2,
+               xend = 2,
+               y = 0,
+               yend = dnorm(2),
+               linewidth = 1.5,
+               lty = 2)+
+  ylim(0, 0.45)+
+  labs(x = "z",
+       y = "Probability Density")
+```
+
+]
+
+---
+
+### The Standard Normal
+
+
+Back in **ye olden days**, the way to find areas under the curve of **any** normal was to **transform** that distribution into the **standard normal**.
+
+.pull-left[
+
+We can **still** do that (but we don't **have to**).
+
+To do so, we use the ** $z$-score transformation $(x \to z)$**
+
+(which is is still **super-important**)
+
+]
+
+.pull-right[
+
+![](images/oldefriendsloop.gif)
+
+.caption[
+Companions Frolicking in Ye Olden Days
+]
+
+]
+---
+
+### $z$: the Standardized Score
+
+A ** $z$-score** is known as a **standardized score** because it makes values **comparable across distributions**.
+
+
+### $$z = \frac{x-\mu}{\sigma}$$
+
+It tells us **how many standard deviations $x$ is from the mean of its distribution**.
+
+> $z=2$: two standard deviations **greater than the mean**
+
+> $z = -1.3$: 1.3 standard deviations **less than the mean**
+
+
+---
+### $z$-scores
+
+.slightly-smaller[
+
+Example 1: the national **mean** of a test is **500 points** with a **standard deviation** of 100. What is the probability that a test-taker chosen at random scored between ** $400$** and ** $600$**?
+
+> or, **what proportion** of scores fall between ** $400$** and ** $600$**?
+]
+
+.pull-left[
+
+$$z_{400}=\frac{400-500}{100}=-1$$
+$$z_{600}=\frac{600-500}{100}=1$$
+.slightly-smaller[
+We know from earlier that the **area between $z=-1$ and $z=1$** is ** $0.6824$**.
+]
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 5}
+zex2 <- data.frame(x = seq(200, 800, 600/1000)) %>% 
+  mutate(y = dnorm(x, mean = 500, sd = 100)) 
+
+zex2 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex2, zex2$x >= 400 & zex2$x <= 600),
+            fill = "#FFA400")+
+  scale_x_continuous(breaks = c(400, 0, 600))+
+  annotate("text",
+           x = 500,
+           y = dnorm(500, 500, 100),
+           vjust = 0,
+           label = bquote(mu),
+           size = 36/.pt)+
+  geom_segment(x = 500,
+               xend = 500,
+               y = 0,
+               yend = dnorm(500, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 400,
+               xend = 400,
+               y = 0,
+               yend = dnorm(400, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 600,
+               xend = 600,
+               y = 0,
+               yend = dnorm(600, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+ ylim(0, 0.0045)+
+  labs(x = "x",
+       y = "Probability Density")
+```
+]
+---
+
+### $z$-scores
+
+.slightly-smaller[
+
+Example 2: What is the probability that a test-taker chosen at random scored less than ** $300$** or higher than ** $700$**?
+
+]
+
+.pull-left[
+
+.slightly-smaller[
+
+$$z_{300}=\frac{300-500}{100}=-2$$
+$$z_{700}=\frac{700-500}{100}=2$$
+
+From a **table**, we can find that the **area from $z=2$ to the tail** is ** $0.0228$**
+
+Since the **area from $z=-2$ to the tail** is *also* ** $0.0228$**:
+]
+
+** $$p(x\le300 \cup x \ge 700)=0.0456$$**
+
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 6}
+zex2 <- data.frame(x = seq(200, 800, 600/1000)) %>% 
+  mutate(y = dnorm(x, mean = 500, sd = 100)) 
+
+zex2 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex2, zex2$x <= 300),
+            fill = "#FFA400")+
+    geom_area(data = subset(zex2, zex2$x >= 700),
+            fill = "#FFA400")+
+  scale_x_continuous(breaks = c(300, 0, 700))+
+    geom_segment(x = 300,
+               xend = 300,
+               y = 0,
+               yend = dnorm(300, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 700,
+               xend = 700,
+               y = 0,
+               yend = dnorm(700, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+  labs(x = "x",
+       y = "Probability Density")
+```
+]
+---
+
+
+### $z$-scores
+
+.slightly-smaller[
+
+Example 2: What is the probability that a test-taker chosen at random scored less than ** $300$** or higher than ** $700$**?
+
+]
+
+.pull-left[
+
+.slightly-smaller[
+
+Using `R`:
+
+```{r}
+pnorm(300,
+      mean = 500,
+      sd = 100, 
+      lower.tail = TRUE)+
+  pnorm(700,
+        mean = 500,
+        sd = 100,
+        lower.tail = FALSE)
+```
+
+]
+
+
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 6}
+zex2 <- data.frame(x = seq(200, 800, 600/1000)) %>% 
+  mutate(y = dnorm(x, mean = 500, sd = 100)) 
+
+zex2 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex2, zex2$x <= 300),
+            fill = "#FFA400")+
+    geom_area(data = subset(zex2, zex2$x >= 700),
+            fill = "#FFA400")+
+  scale_x_continuous(breaks = c(300, 0, 700))+
+    geom_segment(x = 300,
+               xend = 300,
+               y = 0,
+               yend = dnorm(300, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+    geom_segment(x = 700,
+               xend = 700,
+               y = 0,
+               yend = dnorm(700, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+  labs(x = "x",
+       y = "Probability Density")
+```
+]
+
+---
+
+### $z$-scores and Percentiles
+
+.slightly-smaller[
+Example 3: What is the **percentile score** for somebody with a score of ** $630$**?
+
+> *i.e.*, what **percentage** of scores are less than ** $630$**?
+]
+
+.pull-left[
+
+.slightly-smaller[
+
+$$z = \frac{630-500}{100}=1.3$$
+From the **table**, the **area between $z = 1.3$ and the mean** is ** $0.4032$**.
+
+The area on the **other half of the normal distribution** **is always $0.5$** 
+
+** $0.4032+0.5=0.9032$**, or, approximately, the **90th percentile**.
+
+
+]
+
+
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 6}
+zex2 <- data.frame(x = seq(200, 800, 600/1000)) %>% 
+  mutate(y = dnorm(x, mean = 500, sd = 100)) 
+
+zex2 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex2, zex2$x <= 630),
+            fill = "#FFA400")+
+#  scale_x_continuous(breaks = c(300, 0, 700))+
+  geom_segment(x = 500,
+               xend = 500,
+               y = 0,
+               yend = dnorm(500, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+  annotate("text",
+           x = 550,
+           y = dnorm(500, 500, 100)/2,
+           label = bquote(mu),
+           size = 36/.pt,
+           color = "#380001")+
+
+  labs(x = "x",
+       y = "Probability Density")
+```
+]
+
+---
+
+
+### $z$-scores and Percentiles
+
+.slightly-smaller[
+Example 3: What is the **percentile score** for somebody with a score of ** $630$**?
+
+> *i.e.*, what **percentage** of scores are less than ** $630$**?
+]
+
+.pull-left[
+
+In `R`:
+
+```{r}
+pnorm(630,
+      500,
+      100)
+```
+
+
+
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 6}
+zex2 <- data.frame(x = seq(200, 800, 600/1000)) %>% 
+  mutate(y = dnorm(x, mean = 500, sd = 100)) 
+
+zex2 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex2, zex2$x <= 630),
+            fill = "#FFA400")+
+#  scale_x_continuous(breaks = c(300, 0, 700))+
+  geom_segment(x = 500,
+               xend = 500,
+               y = 0,
+               yend = dnorm(500, 500, 100),
+               linewidth = 1.5,
+               lty = 2)+
+  annotate("text",
+           x = 550,
+           y = dnorm(500, 500, 100)/2,
+           label = bquote(mu),
+           size = 36/.pt,
+           color = "#380001")+
+
+  labs(x = "x",
+       y = "Probability Density")
+```
+]
+
+---
+### $z$-scores and Percentiles
+
+.slightly-smaller[
+Example 4: What is the ** 20th percentile score**?
+]
+
+.pull-left[
+
+.slightly-smaller[
+From the **table**, an **area of $\approx 0.2$** corresponds to ** $z = -0.84$**.
+
+$$-0.84=\frac{x-500}{100}$$
+.center[
+
+** $x = 416$**
+]
+
+]
+
+```{r}
+qnorm(p = 0.2,
+      mean = 500,
+      sd = 100)
+```
+
+]
+
+.pull-right[
+```{r echo = FALSE, fig.height = 6}
+zex2 <- data.frame(x = seq(200, 800, 600/1000)) %>% 
+  mutate(y = dnorm(x, mean = 500, sd = 100)) 
+
+zex2 %>% 
+  ggplot(aes(x, y))+
+  geom_line(linewidth = 1.5)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  geom_area(data = subset(zex2, zex2$x <= 416),
+            fill = "#FFA400")+
+#  scale_x_continuous(breaks = c(300, 0, 700))+
+  annotate("text",
+           x = 500,
+           y = 0.002,
+           label = "80%",
+           size = 36/.pt)+
+    annotate("text",
+           x = 350,
+           y = 0,
+           vjust = -0.5,
+           label = "20%",
+           size = 36/.pt,
+           color = "#380001")+
+  labs(x = "x",
+       y = "Probability Density")
+```
+]
+---
+### $z$-scores
+
+$z$-scores can be calculated for **any** distribution
+
+> including **empirical distributions**
+
+Reminder: the $z$-score is simply a **measure of standard deviations from the mean**.
+
+> that means we can use $z$-scores to compare values from different datasets regardless of **scale** and/or **units**
+
+> The **dimensionlessness** quality of $z$-scores are critical to **regression analysis**
+
+---
+
+### $z$-scores
+
+Note: the $z$-transformation **standardizes** values (*i.e.*, puts them in terms of SDs) but it does not **normalize** values.
+
+.pull-left[
+
+```{r echo = FALSE, fig.height = 4}
+set.seed(77)
+
+x1<-data.frame(x1 = rnorm(100, 77, 3))
+
+x1 %>% 
+  ggplot(aes(x1))+
+  geom_histogram(color = "#8f010b",
+                 fill = "#FFA400",
+                 binwidth = 1)+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "x",
+       y = "frequency",
+       title = "observed x")
+```
+
+]
+
+.pull-right[
+
+```{r echo = FALSE, fig.height = 4}
+
+x1 %>% 
+  mutate(z = (x1 - mean(x1))/sd(x1)) %>% 
+  ggplot(aes(z))+
+  geom_histogram(color = "#8f010b",
+                 fill = "#FFA400", binwidth = 1/sd(x1$x1))+
+  theme_tufte()+
+  theme_xaringan(css_file = "autumnleaves.css")+
+  labs(x = "z(x)",
+       y = "frequency",
+       title = "z-scores")
+```
+]
+
+To **change the general shape** of an empirical distribution requires a **non-linear transformation** (which we'll cover later)
+---
+
+### $z$-scores
+
+When we convert **groups of data** into $z$-scores:
+
+> the **mean** of the $z$-scores is **always $0$**
+
+
+>> that is a **property** of the mean
+
+
+> the **sd** of the $z$-scores is **always $1$**
+
+
+
+>> because we **factor out** the sd in the $z$ equation.
+
+
+
+---
+### Outliers
+
+**Outliers** are values so extreme as to make their membership in an empirical distribution **questionable**.
+
+Outliers can be identified **mathematically**, and there are several recommendations for **rules**:
+
+> ** $\pm~3SD$** (*e.g.*, Howell *et al*, 1998)
+
+> ** $1.5(IQR)$** (Tukey, 1977)
+
+> ** $1.4826(Mean~Absolute~Deviation)$** (Huber, 1981)
+
+...but maybe **don't** rely on rules.
+
+---
+
+### Outliers
+
+The data below are all **totally legitimate**: we know they belong!
+
+```{r echo = FALSE}
+data.frame(Movie = c("The Empire Strikes Back",
+                     "Titanic",
+                     "Avengers: Endgame"),
+           Year = c("1980",
+                    "1997",
+                    "2019"),
+           Gross = c("$292,753,960",
+                     "$674,292,608",
+                     "$858,373,000"),
+           Adjusted = c("$920,818,947",
+                        "$1,270,101,626",
+                        "$892,669,593"),
+           z = c(4.9,
+                 6.5,
+                 12.9)) %>% 
+  flextable() %>% 
+  set_header_labels(Year = "Year",
+                    Gross = "Domestic Gross",
+                    Adjusted = "Adjusted to 2022",
+                    z = "$z$") %>% 
+  colformat_md(part = "header") %>% 
+  color(color = "#FCF7EB", part = "all") %>% 
+  width(j = 1, width = 3, unit = "in") %>% 
+  width(j = 2, width = 1, unit = "in") %>% 
+  width(j = 3, width = 2, unit = "in") %>% 
+  width(j = 4, width = 2, unit = "in") %>% 
+  width(j = 5, width = 1, unit = "in") %>% 
+  fontsize(size = 14, part = "all") %>% 
+    set_caption(as_paragraph(
+      as_chunk("Selected High-Grossing Movies",
+               props = fp_text_default(font.size = 18,
+                                       color = "#FCF7EB")
+               )
+      )
+      )%>% 
+    add_footer_lines(as_paragraph(
+      as_chunk("source: boxofficemojo.com",
+               props = fp_text_default(font.size = 10,
+                                       color = "#FCF7EB")
+               )
+      ))
+```
+
+**Decision rules** can be helpful, *especially* with **large data sets**, but **should not take the place of careful examination of the data!**
+
