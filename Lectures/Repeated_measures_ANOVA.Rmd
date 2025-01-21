@@ -1,0 +1,877 @@
+---
+title: "Repeated-measures ANOVA"
+author: ""
+date: "`r Sys.Date()`"
+output: 
+  xaringan::moon_reader:
+    self_contained: true
+    css: [pomegranate_on_print.css]
+nature: 
+  highlightStyle: tomorrow-night-blue
+  hilightLines: true
+  highlightSpans: true
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, fig.showtext=TRUE)
+library(tidyverse) # load tidyverse package
+library(MASS)
+library(ggplot2)
+library(ggthemes)
+library(kableExtra)
+library(flextable)
+library(cowplot)
+library(xaringanthemer)
+#library(gg3D)
+#library(leaflet)
+library(maps)
+library(fontawesome)
+library(ggrepel)
+library(DescTools)
+library(renderthis)
+library(ftExtra)
+library(BayesFactor)
+library(ggridges)
+library(wesanderson)
+library(lme4)
+
+RM_1way_ex_df<-data.frame(Participant = factor(rep(c("P1", "P2", "P3", "P4"),
+                                            each = 3)),
+                          IV = factor(rep(c("A1", "A2", "A3"),
+                                   4)),
+                          DV = c(5, 6, 7,
+                                 7, 13, 13,
+                                 2, 4, 6,
+                                 6, 9, 12))
+
+DV<-RM_1way_ex_df$DV
+IV<-RM_1way_ex_df$IV
+Participant<- RM_1way_ex_df$Participant
+
+#library(xaringan)
+#decktape(
+#  file = "Repeated_measures_ANOVA.html",
+#  output = "Repeated_measures_ANOVA.pdf",
+#  args = "--chrome-arg=--allow-file-access-from-files",
+#  docker = FALSE,
+# # version = "",
+#  open = FALSE
+#)
+## To create pdf version:
+
+# setwd("~/Documents/PSY 208/PSY207_208_24_25/Lectures")
+# library(renderthis)
+
+# renderthis::to_pdf("Repeated_measures_ANOVA.Rmd",  complex_slides = TRUE)
+
+## To create PowerPoint version:
+
+# renderthis::to_pptx("Repeated-measures_ANOVA.Rmd", complex_slides = TRUE)
+```
+
+### Repeated-measures Designs
+
+.slightly-smaller[
+Also known as **within-participants/subjects** or **Randomized Block**
+
+> **block** frequently refers to **individuals in different conditions**, but could also refer to other **matching variables**
+
+Each participant gets **each level** of a treatment
+
+Advantages of **repeated-measures designs** (as first discussed in the context of repeated-measures $t$-tests):
+
+> Increased power due to reducing the impact of individual differences
+
+> Fewer observations required
+
+> Reduced cost, resources
+]
+
+---
+### Repeated-measures ANOVA: Assumptions
+
+
+
+Assumptions of the repeated-measures design:
+
+> **Normality**: the **residuals** are normally distributed 
+
+>> For **repeated-measures**, residual calculation also accounts for **participant**/**block** differences
+
+
+> **Additivity**: no **subject-by-treatment interaction**
+
+>>Differences in conditions, on average, affect individuals in the same way.
+
+---
+
+### Repeated-measures ANOVA: Assumptions
+
+
+> **Sphericity**: the **variances of the differences** between each **pair** of conditions are equal.
+
+>> The **variances of the differences** are like ** $s_d$** from RM $t$-tests - just now there are *more of them*.
+
+
+If any of these assumptions are violated, we may still proceed, it’s just a little more complicated.
+
+
+---
+### Repeated-measures ANOVA: Hypotheses
+
+The null and alternative hypotheses for repeated-measures ANOVA **are the same as for the independent-groups ANOVA**:
+
+$$H_0: \sigma^2_\alpha = 0$$
+
+$$H_1: \sigma^2_\alpha>0$$
+
+That is, **the null is that there is no variance associated with the treatment** $(\alpha)$ and **the alternative is that there is variance associated with the treatment** $(\alpha)$ on the population level.
+
+The **difference** between repeated-measures and independent-groups ANOVA is **how we test the hypotheses**.
+
+---
+
+### Repeated-measures ANOVA Model
+
+Assuming **additivity**:
+
+** $$y_{ij}=\mu+\alpha_j+\pi_i+\epsilon_{ij}$$**
+
+.center[
+** $y_{ij}$**: observed value of the DV
+
+** $\mu$**: population mean
+
+** $\alpha_j$**: effect of the treatment $\alpha$ at each level $j$
+
+** $\pi_i$**: effect of *individual* (or *block*) *differences*
+
+** $\epsilon_{ij}$**: error (or, residuals)
+
+]
+
+---
+
+### RM model *vs.* IG model
+
+IG model:  $y_{ij}=\mu+\alpha_j$ ** $+\epsilon_{ij}$**
+
+> population variance components: $\sigma^2_\alpha, \sigma^2_\epsilon$
+
+RM model: $y_{ij}=\mu+\alpha_j$ ** $+\pi_i+\epsilon_{ij}$**
+
+> population variance components: $\sigma^2_\alpha, \sigma^2_\epsilon, \sigma^2_\pi$
+
+Important concept: the repeated-measures model **does not *add* variance** associated with individual differences - **it takes that variance *out*** of the error
+
+> A smaller error term tends to mean a larger $F$ ratio – and therefore more power for rejecting $\sigma^2_\alpha=0$.
+
+---
+
+### RM ANOVA Calculation (Additive)
+
+Almost all of the calculations for the Sums of Squares terms are the same for the repeated-measures ANOVA as they are for the independent-groups ANOVA, with **one additional step**.
+
+>We are additionally going to calculate the **Sums of Squares associated with individual differences**: ** $SS_{participants}$**
+
+> We will then take that value and subtract it from ** $SS_{within}$** to get ** $SS_{e}$** 
+
+---
+
+### RM One-way ANOVA Example
+
+Four participants $(n=4)$, three levels of **Factor A**\*, $\alpha = 0.05$
+
+```{r echo=FALSE}
+
+RM_1way_ex_df %>% 
+  pivot_wider(names_from = "IV",
+              values_from = "DV") %>% 
+  flextable() %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  align(align = "center", j = 2:4, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.75, unit = "in")
+```
+
+.footnote[
+\* there is no **Factor B** here - just keeping our notation consistent between one-way and factorial ANOVA
+]
+
+---
+### RM One-way ANOVA Example
+
+$SS_{total}: \sum \left( y_{ij}-y_{\bullet \bullet}\right)^2$ - **This is the same as IG ANOVA**
+
+```{r echo=FALSE}
+GM = mean(RM_1way_ex_df$DV)
+
+RM_1way_ex_df %>% 
+    pivot_wider(names_from = "IV",
+              values_from = "DV") %>% 
+  mutate(A1resid = round(A1-GM, 2)) %>% 
+  mutate(A2resid = round(A2-GM, 2)) %>% 
+  mutate(A3resid = round(A3-GM, 2)) %>% 
+  mutate(A1residsq = round(A1resid^2, 2)) %>% 
+  mutate(A2residsq = round(A2resid^2, 2)) %>% 
+  mutate(A3residsq = round(A3resid^2, 2)) %>% 
+  relocate(c(A1resid, A1residsq), .after = A1) %>% 
+  relocate(c(A2resid, A2residsq), .after = A2) %>% 
+  relocate(c(A3resid, A3residsq), .after = A3) %>% 
+  flextable() %>% 
+  set_header_labels(Participant = "P",
+                    A1resid = "$y_{i1}-y_{\\bullet \\bullet}$",
+                    A1residsq = "$(y_{i1}-y_{\\bullet \\bullet})^2$",
+                    A2resid = "$y_{i2}-y_{\\bullet \\bullet}$",
+                    A2residsq = "$(y_{i2}-y_{\\bullet \\bullet})^2$",
+                    A3resid = "$y_{i3}-y_{\\bullet \\bullet}$",
+                    A3residsq = "$(y_{i3}-y_{\\bullet \\bullet})^2$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = c(4, 7, 10), part = "body") %>% 
+  align(align = "center", j = 2:10, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+    add_header_row(values = c("",
+                              "$y_{\\bullet\\bullet} = 7.5$"),
+                 colwidths = c(1, 9)) %>% 
+  align(align = "center", part = "header") %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "header")
+```
+
+$SS_{total}= \sum \left( y_{ij}-y_{\bullet \bullet}\right)^2=139$
+
+---
+### RM One-way ANOVA Example
+
+$SS_{A}: n\sum \left( y_{\bullet j}-y_{\bullet \bullet}\right)^2$ - **This is ALSO the same as IG ANOVA**
+
+```{r echo=FALSE}
+GM = mean(RM_1way_ex_df$DV)
+
+
+RM_1way_ex_df %>% 
+    pivot_wider(names_from = "IV",
+              values_from = "DV") %>% 
+  mutate(A1resid = round(mean(A1)-GM, 2)) %>% 
+  mutate(A2resid = round(mean(A2)-GM, 2)) %>% 
+  mutate(A3resid = round(mean(A3)-GM, 2)) %>% 
+  mutate(A1residsq = round(A1resid^2, 2)) %>% 
+  mutate(A2residsq = round(A2resid^2, 2)) %>% 
+  mutate(A3residsq = round(A3resid^2, 2)) %>% 
+  relocate(c(A1resid, A1residsq), .after = A1) %>% 
+  relocate(c(A2resid, A2residsq), .after = A2) %>% 
+  relocate(c(A3resid, A3residsq), .after = A3) %>% 
+  flextable() %>% 
+  set_header_labels(Participant = "P",
+                    A1resid = "$y_{\\bullet 1}-y_{\\bullet \\bullet}$",
+                    A1residsq = "$(y_{\\bullet 1}-y_{\\bullet \\bullet})^2$",
+                    A2resid = "$y_{\\bullet 2}-y_{\\bullet \\bullet}$",
+                    A2residsq = "$(y_{\\bullet 2}-y_{\\bullet \\bullet})^2$",
+                    A3resid = "$y_{\\bullet 3}-y_{\\bullet \\bullet}$",
+                    A3residsq = "$(y_{\\bullet 3}-y_{\\bullet \\bullet})^2$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = c(4, 7, 10), part = "body") %>% 
+  align(align = "center", j = 2:10, part = "all") %>% 
+  fontsize(size = 16, part = "header") %>%
+  fontsize(size=12, part = "body") %>% 
+      add_header_row(values = c("",
+                              "$y_{\\bullet 1} = 5$",
+                              "$y_{\\bullet 2} = 8$",
+                              "$y_{\\bullet 3} = 9.5$"),
+                 colwidths = c(1, 3, 3, 3)) %>% 
+    add_header_row(values = c("",
+                              "$y_{\\bullet\\bullet} = 7.5$"),
+                 colwidths = c(1, 9)) %>% 
+  align(align = "center", part = "header") %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "header")
+```
+
+$SS_{A}= n\sum \left( y_{\bullet j}-y_{\bullet \bullet}\right)^2=42$
+
+---
+### RM One-way ANOVA Example
+
+$SS_{within}: \sum \left( y_{i j}-y_{\bullet j}\right)^2$ - **This is the same as $SS_{within}$ or $SS_{e}$ for IG ANOVA**
+
+```{r echo=FALSE}
+GM = mean(RM_1way_ex_df$DV)
+
+
+RM_1way_ex_df %>% 
+    pivot_wider(names_from = "IV",
+              values_from = "DV") %>% 
+  mutate(A1resid = round(A1 - mean(A1), 2)) %>% 
+  mutate(A2resid = round(A2 - mean(A2), 2)) %>% 
+  mutate(A3resid = round(A3 - mean(A3), 2)) %>% 
+  mutate(A1residsq = round(A1resid^2, 2)) %>% 
+  mutate(A2residsq = round(A2resid^2, 2)) %>% 
+  mutate(A3residsq = round(A3resid^2, 2)) %>% 
+  relocate(c(A1resid, A1residsq), .after = A1) %>% 
+  relocate(c(A2resid, A2residsq), .after = A2) %>% 
+  relocate(c(A3resid, A3residsq), .after = A3) %>% 
+  flextable() %>% 
+  set_header_labels(Participant = "P",
+                    A1resid = "$y_{i1}-y_{\\bullet 1}$",
+                    A1residsq = "$(y_{i1}-y_{\\bullet 1})^2$",
+                    A2resid = "$y_{i2}-y_{\\bullet 2}$",
+                    A2residsq = "$(y_{i2}-y_{\\bullet 2})^2$",
+                    A3resid = "$y_{i3}-y_{\\bullet 3}$",
+                    A3residsq = "$(y_{i3}-y_{\\bullet 3})^2$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#648fff", j = c(4, 7, 10), part = "body") %>% 
+  align(align = "center", j = 2:10, part = "all") %>% 
+  fontsize(size = 16, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+      add_header_row(values = c("",
+                              "$y_{\\bullet 1} = 5$",
+                              "$y_{\\bullet 2} = 8$",
+                              "$y_{\\bullet 3} = 9.5$"),
+                 colwidths = c(1, 3, 3, 3)) %>% 
+  align(align = "center", part = "header") %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "header")
+```
+
+$SS_{within}= \sum \left( y_{i j}-y_{\bullet j}\right)^2=97$
+
+---
+### RM One-way ANOVA Example
+
+$SS_{participants}: \sum j\left( y_{i \bullet}-y_{\bullet \bullet}\right)^2$ - **THIS IS NEW**
+
+First, we will calculate **participant means $(y_{i\bullet})$** across the $j$ conditions
+
+```{r echo=FALSE}
+GM = mean(RM_1way_ex_df$DV)
+
+
+RM_1way_ex_df %>% 
+    pivot_wider(names_from = "IV",
+              values_from = "DV") %>% 
+  group_by(Participant) %>% 
+  mutate(Pmean = mean(c(A1, A2, A3))) %>% 
+  flextable() %>% 
+  set_header_labels(Participant = "P",
+                    Pmean = "$y_{i \\bullet}$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#fe6100", j = c(5), part = "body") %>% 
+  align(align = "center", j = 2:5, part = "all") %>% 
+  fontsize(size = 24, part = "header") %>%
+  fontsize(size=24, part = "body") %>% 
+  align(align = "center", j = 2:5, part = "header") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "header")
+```
+
+---
+### RM One-way ANOVA Example
+
+$SS_{participants}: \sum j\left( y_{i \bullet}-y_{\bullet \bullet}\right)^2$ - **THIS IS NEW**
+
+Then, we will add the squared difference between the **participant means $(y_{i\bullet})$** and **the grand mean $(y_{\bullet \bullet})$** or each of the $j$ conditions.
+
+```{r echo=FALSE}
+GM = mean(RM_1way_ex_df$DV)
+
+
+RM_1way_ex_df %>% 
+    pivot_wider(names_from = "IV",
+              values_from = "DV") %>% 
+  group_by(Participant) %>% 
+  mutate(Pmean = mean(c(A1, A2, A3))) %>% 
+    mutate(A1resid = round(Pmean - GM, 2)) %>% 
+  mutate(A2resid = round(Pmean - GM, 2)) %>% 
+  mutate(A3resid = round(Pmean - GM, 2)) %>% 
+  mutate(A1residsq = round(A1resid^2, 2)) %>% 
+  mutate(A2residsq = round(A2resid^2, 2)) %>% 
+  mutate(A3residsq = round(A3resid^2, 2)) %>% 
+  relocate(c(A1resid, A1residsq), .after = A1) %>% 
+  relocate(c(A2resid, A2residsq), .after = A2) %>% 
+  relocate(c(A3resid, A3residsq), .after = A3) %>% 
+  flextable() %>% 
+  set_header_labels(Participant = "P",
+                    Pmean = "$y_{i \\bullet}$",
+                    A1resid = "$y_{1 \\bullet}-y_{\\bullet \\bullet}$",
+                    A1residsq = "$(y_{1 \\bullet}-y_{\\bullet \\bullet})^2$",
+                    A2resid = "$y_{2 \\bullet}-y_{\\bullet \\bullet}$",
+                    A2residsq = "$(y_{2 \\bullet}-y_{\\bullet \\bullet})^2$",
+                    A3resid = "$y_{3 \\bullet}-y_{\\bullet \\bullet}$",
+                    A3residsq = "$(y_{3 \\bullet}-y_{\\bullet \\bullet})^2$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+  bg(bg = "#fe6100", j = 10, part = "body") %>%
+  bg(bg = "#648fff", j = c(4, 7, 10), part = "body") %>% 
+  align(align = "center", j = 2:11, part = "all") %>% 
+  fontsize(size = 16, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+    add_header_row(values = c("",
+                              "$y_{\\bullet\\bullet} = 7.5$"),
+                 colwidths = c(1, 10)) %>% 
+  align(align = "center", j = 2:11, part = "header") %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "header")
+```
+
+$$SS_{participants}: \sum j\left( y_{i \bullet}-y_{\bullet \bullet}\right)^2=87$$
+---
+
+### RM One-way ANOVA Example
+
+The sums of squares associated with participants are **literally subtracted** from what *was* the error for the IG ANOVA:
+
+$$SS_{residual}=SS_{within}-SS_{participants}=97-87=10$$
+---
+
+### RM One-way ANOVA Table
+
+```{r echo=FALSE}
+Source<-c("Factor A",
+          "Participants",
+          "Error\n(Residuals)",
+          "Total")
+
+df <- c("$j-1$",
+        "$n-1$",
+        "$(j-1)(n-1)$",
+        "$jn-1$")
+
+SS <-c("$SS_A$",
+       "$SS_p$",
+       "$SS_{resid}$",
+       "$SS_{total}$")
+
+MS<-c("$MS_A$",
+       "$MS_p$",
+      "$MS_{resid}$",
+       NA)
+
+Fratio<-c("$MS_A/MS_e$",
+          "Please ignore me",
+          NA,
+          NA)
+
+EMS<-c("$n\\sigma^2_\\alpha + \\sigma^2_\\epsilon$",
+       "$j\\sigma^2_\\pi + \\sigma^2_\\epsilon$",
+       "$\\sigma^2_{\\epsilon}$",
+       NA)
+
+
+ANOVA_table<-data.frame(Source,
+                        df,
+                        SS,
+                        MS,
+                        Fratio,
+                        EMS)
+
+ANOVA_table %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+#  bg(bg = "#648fff", j = c(3, 6, 9), part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 18, part = "header") %>%
+  fontsize(size=16, part = "body") %>% 
+  width(width = 1.5, unit = "in") %>% 
+  colformat_md(part = "all") 
+```
+
+.slightly-smaller[
+Note: we *could* calculate an $F$-ratio for participants: it would be $MS_{participants}/MS_e$, and software packages (including `R`) will calculate it for you. However, we don't care about it because *we already know* that individual differences exist.
+]
+---
+### RM One-way ANOVA Table
+
+Here's the simplest way to do it in `R`. Don't get **too attached** to that $F$-ratio:
+
+```{r}
+summary(aov(DV~IV+Participant, 
+            data = RM_1way_ex_df))
+```
+
+---
+
+### RM One-way ANOVA Table
+
+Here's another method that introduces the concept of **hierarchical regression modeling**
+
+.pull-left[
+.slightly-smaller[
+
+At right is a *scatterplot* of the observed data: 
+
+> the $x$-axis gives the **levels of factor A** 
+
+> the $y$-axis gives the **observed values of the DV**
+
+> the **color** of the dots varies by **participant**
+
+]
+]
+.pull-right[
+
+```{r echo=FALSE,  fig.align='center'}
+RM_1way_ex_df %>% 
+  ggplot(aes(x=IV, y = DV, color = Participant))+
+  geom_point(size=10)+
+  scale_color_manual(values = wes_palette(name = "Royal1",
+                                          n = 4,
+                                          type = "discrete"))+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  theme(legend.position = "bottom")
+
+```
+
+]
+---
+
+### RM One-way ANOVA Table
+
+.pull-left[
+
+
+> This is a visualization of the concept of RM ANOVA as a **regression model** where each participant has a **different intercept** 
+
+> The **overall slope** is the same! That's the **levels of Factor A** affecting the DV **consistently**
+
+
+
+]
+
+```{r echo = FALSE}
+
+RM_MLM <- lmer(DV ~ IV + (1|Participant), data = RM_1way_ex_df)
+
+A_means <- RM_1way_ex_df %>% 
+  group_by(IV) %>% 
+  summarise(A_means = mean(DV)) %>% 
+  dplyr::select(A_means) %>% 
+  pull()
+
+P_means <- RM_1way_ex_df %>% 
+  group_by(Participant) %>% 
+  summarise(P_means = mean(DV)) %>% 
+  dplyr::select(P_means) %>% 
+  pull()
+
+intercept = fixef(RM_MLM)[1]
+
+slope = (max(A_means) - min(A_means))/3 
+
+p_intercepts = unname(unlist(ranef(RM_MLM)))
+
+```
+
+.pull-right[
+
+```{r echo=FALSE,  fig.align='center'}
+
+colors = wes_palette(name = "Royal1",
+                     n = 4,
+                     type = "discrete")
+RM_1way_ex_df %>% 
+  ggplot(aes(x=IV, y = DV, color = Participant))+
+  geom_point(size=10)+
+  scale_color_manual(values = colors)+
+  theme_tufte(ticks=FALSE)+
+  theme_xaringan(css_file = "pomegranate_on_print.css")+
+  theme(legend.position = "bottom")+
+  geom_abline(slope = slope, intercept = intercept + p_intercepts[1],
+              color = colors[1]) +
+  geom_abline(slope = slope, intercept = intercept + p_intercepts[2],
+              color = colors[2]) +
+geom_abline(slope = slope, intercept = intercept + p_intercepts[3],
+              color = colors[3]) +
+geom_abline(slope = slope, intercept = intercept + p_intercepts[4],
+              color = colors[4])
+  
+
+```
+
+]
+
+---
+
+### RM One-way ANOVA Table
+
+We can get the **same $F$-ratio** using a **multi-level regression model**\*
+
+.slightly-smaller[
+
+> The effect of **Factor A** (level 1) is nested within the effect of **participant differences** (level 2)
+
+> The term `(1|Participant)` means that each participant represents a **random intercept** in a multi-level regression analysis
+
+]
+
+.smaller-output[
+
+```{r}
+library(lme4) #for multilevel modeling
+anova(lmer(DV ~ IV + (1|Participant), data = RM_1way_ex_df))
+```
+
+]
+
+***
+.footnote[
+
+.slightly-smaller[
+
+\*this method will be quite helpful for more complex designs
+]
+]
+
+
+---
+### Effect Size
+
+The value of $\eta^2$ is calculated and interpreted in the exact same way for the one-way RM ANOVA as it was for the one-way IG ANOVA:
+
+$$\eta^2=\frac{SS_A}{SS_{total}}$$
+$\omega^2$ is also very similar: it is still the ratio of the population variance component associated with Factor A divided by the sum of the other population variance components. 
+
+> The difference is that there is **another** population variance component in the RM model: ** $\sigma^2_{\pi}$**:
+
+$$\omega^2=\frac{\sigma^2_\alpha}{\sigma^2_\alpha+\sigma^2_\pi+\sigma^2_\epsilon}$$
+---
+
+### Effect size
+
+The guide to estimating $\sigma^2_\pi$ comes from the EMS for **participants**:
+
+$$\text{EMS}_{participants} = j\sigma^2_\pi + \sigma^2_\epsilon$$
+Our estimate of $\sigma^2_\pi$ is therefore:
+
+$$\widehat{\sigma^2_\pi}=\frac{\text{MS}_{participants}-\text{MS}_{residuals}}{j}$$
+Note: $\widehat{\sigma^2_\pi}$ is **never corrected** because *participants* are **always** considered **random**!
+
+---
+
+### About those RM Assumptions
+
+> **Additivity and Non-additivity**
+
+The **additivity assumption** implies that each participant responds to each level of the IV factor(s) in an approximately equal way.
+
+If we have reason to believe that there *is* a **participant-by-treatment interaction** - *and we are willing to deal with the consequences of that* - there is a **nonadditive model** for repeated-measures designs.
+
+The one-way **nonadditive model** is:
+
+$$y_{ij}=\mu+\alpha_j+\pi_i+\epsilon_{ij}+\alpha\pi_{ij}$$
+where $\alpha_{\pi_{ij}}$ represents the **participant-by-treatment** (or, **blocks-by-treatment**) **interaction**.
+
+---
+
+### RM One-way ANOVA Table (nonadditive)
+
+```{r echo=FALSE}
+Source<-c("Factor A",
+          "Participants",
+          "A*Participants",
+          "Total")
+
+df <- c("$j-1$",
+        "$n-1$",
+        "$(j-1)(n-1)$",
+        "$jn-1$")
+
+SS <-c("$SS_A$",
+       "$SS_p$",
+       "$SS_{e}$",
+       "$SS_{total}$")
+
+MS<-c("$MS_A$",
+       "$MS_p$",
+      "$MS_{e}$",
+       NA)
+
+Fratio<-c("$MS_A/MS_{e}$",
+          NA,
+          NA,
+          NA)
+
+EMS<-c("$n\\sigma^2_\\alpha + \\sigma^2_{\\alpha\\pi}+\\sigma^2_\\epsilon$",
+       "$j\\sigma^2_\\pi + (1-j/J)\\sigma^2_{\\alpha\\pi}+\\sigma^2_\\epsilon$",
+       "$\\sigma^2_{\\epsilon}$",
+       NA)
+
+
+ANOVA_table<-data.frame(Source,
+                        df,
+                        SS,
+                        MS,
+                        Fratio,
+                        EMS)
+
+ANOVA_table %>% 
+  flextable() %>% 
+  set_header_labels(df = "$df$",
+                    Fratio = "$F$") %>% 
+  color(color = "white", part = "all") %>% 
+  bg(bg = "#fe6100", part = "header") %>% 
+#  bg(bg = "#648fff", j = c(3, 6, 9), part = "body") %>% 
+  align(align = "center", j = 2:6, part = "all") %>% 
+  fontsize(size = 14, part = "header") %>%
+  fontsize(size=14, part = "body") %>% 
+  set_table_properties(layout = "autofit") %>% 
+  colformat_md(part = "all") 
+```
+
+.slightly-smaller[
+There's not an appreciable difference for the **one-way** design between the **additive** and **nonadditive** analysis except for the **interpretation** of the nature of the error term.]
+
+The difference will come in **factorial repeated-measures designs** 
+---
+
+### RM One-way ANOVA Table (nonadditive)
+
+```{r}
+summary(aov(DV~IV+ Participant + Error(IV:Participant), 
+            data = RM_1way_ex_df))
+```
+
+---
+
+### Issues with Nonadditive Analyses
+
+.slightly-smaller[
+
+The **additivity assumption** can be statistically assessed with **Tukey's test of additivity**
+
+
+```{r}
+asbio::tukey.add.test(DV, IV, Participant)
+```
+
+
+Nonadditive analyses:
+
+> Have generally reduced power (Kirk, 1995)
+
+> Are weird to explain
+
+> Make it difficult to calculate effect sizes
+
+So, best to **skip it if you can**.
+]
+---
+
+### Sphericity
+
+Unlike the other assumptions of parametric tests covered thus far, **violations of Sphericity** ***increase the likelihood of type-I errors***
+
+The proper $F$-distribution for testing $H_0$ is called the **Adjusted $F$**, and it has **reduced degrees of freedom in the numerator and denominator** relative to the regular $F$.
+
+> The extent to which the $df$ are reduced depends on the **severity of the violations** and is called ** $\epsilon$** (statisticians can't name things well) and we're going to let the software take care of calculating it for us.
+
+> $\epsilon$ ranges from $\frac{1}{j-1}$ (maximum sphericity violation) to $1$ (no sphericity violation)
+
+---
+
+### Sphericity
+
+To get the adjusted $F$, we multiply the usual $df_{numerator}$ and $df_{denominator}$ by $\epsilon$.
+
+> That means that the $[df_{num}, df_{denom}]$ for the adjusted $F$ are somewhere between: $[1, n-1]$ and $[j-1, (j-1)(n-1)]$
+
+> Note: If we assume the **minimum possible value of $\epsilon$**\*, then the $F$-distribution has $[df_{num}, df_{denom}]= [1, n-1]$ and the test is called the **conservative $F$-test**.
+
+
+.footnote[
+
+the *minimum* $\epsilon$ means sphericity is *maximally* violated
+
+]
+
+
+---
+
+### Sphericity
+
+The **Geisser-Greenhouse Adjusted $F$-test** is probably the most common **Adjusted- $F$ procedure** for repeated-measures designs in which sphericity and/or compound symmetry assumptions may be violated. It's a little **too conservative** when $\epsilon$ is relatively large.
+
+The **Huynh-Feldt** adjustment tweaks the Geisser-Greenhouse test to be a little less conservative (and therefore more powerful), but doesn't do as good a job when departures from sphericity are severe.
+
+```{r eval = FALSE}
+library(ez)
+ezANOVA(data=RM_1way_ex_df,
+        dv = .(DV),
+        wid = .(Participant),
+        within = .(IV),
+        type = 3)
+```
+
+---
+
+### Sphericity
+
+Because the **adjustment** of $F$ is **directly related to the extent of the violation** of sphericity, a good approach is to **just use an adjusted $F$ in the first place**.
+
+
+```{r echo = FALSE}
+library(ez)
+ezANOVA(data=RM_1way_ex_df,
+        dv = .(DV),
+        wid = .(Participant),
+        within = .(IV),
+        type = 3)
+```
+
+
+> The general recommendation is: use GG when `GGe` $\le 0.75$, HF otherwise.
+---
+
+### Nonparametric RM ANOVA
+
+The nonparametric repeated-measures one-way ANOVA is known as the **Friedman Test**.
+
+```{r}
+friedman.test(DV,
+              IV,
+              Participant)
+```
+
+For this example, $p < 0.05$ indicates that **there is a signficant effect of the IV**.
+---
+### Bayesian RM ANOVA
+
+The repeated-measures ANOVA using the `anovaBF()` function is nearly identical to the independent-groups ANOVA
+
+
+> We include `Participant` in the model
+
+> We indicate that `Participant` is the identifier for the blocking variable using `whichRandom`
+
+
+
+
+```{r}
+RM_Bayes_AOV <- anovaBF(DV~IV + Participant, 
+                        data = RM_1way_ex_df,
+                        whichRandom = "Participant",
+                        progress = FALSE)
+```
+
+---
+
+### Bayesian RM ANOVA
+
+For the example data, the Bayes Factor for a model that includes **the IV and Participant** as predictors vs. a (null model) that includes **only Participants** ...
+
+```{r}
+RM_Bayes_AOV
+```
+
+... is $\approx 6$, indicating **substantial strength of evidence**.
